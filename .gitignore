@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# External Binaries and Archives
+influxd.exe
+influxdb.zip
+*.exe
+*.zip
+
+# Virtual environments
+venv/
+.env/
+
+# Joblib models (uncomment if you don't want to track ML models)
+# *.joblib
+
+# Logs
+*.log
+debug_loop.txt
+debug_len.txt
