@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.6"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="48" height="48" rx="12" fill="#0c101a"/>
+  <rect x="1" y="1" width="46" height="46" rx="11" fill="none" stroke="url(#g1)" stroke-width="1" opacity="0.4"/>
+
+  <!-- Turbine blades (5 curved blades) -->
+  <g filter="url(#glow)" transform="translate(24, 24)">
+    <!-- Blade 1 — Up -->
+    <path d="M0 0 L-3 -16 Q0 -20 3 -16 Z" fill="url(#g1)" opacity="0.9"/>
+    <!-- Blade 2 — Upper Right -->
+    <path d="M0 0 L14 -8 Q18 -5 12 -4 Z" fill="url(#g1)" opacity="0.8"/>
+    <!-- Blade 3 — Lower Right -->
+    <path d="M0 0 L10 13 Q12 17 7 13 Z" fill="url(#g1)" opacity="0.7"/>
+    <!-- Blade 4 — Lower Left -->
+    <path d="M0 0 L-10 13 Q-12 17 -7 13 Z" fill="url(#g1)" opacity="0.7"/>
+    <!-- Blade 5 — Upper Left -->
+    <path d="M0 0 L-14 -8 Q-18 -5 -12 -4 Z" fill="url(#g1)" opacity="0.8"/>
+  </g>
+
+  <!-- Water flow arcs -->
+  <g fill="none" stroke="#00e5ff" stroke-width="1" stroke-linecap="round" opacity="0.35">
+    <path d="M10 16 Q16 10 24 8 Q32 10 38 16"/>
+    <path d="M38 34 Q32 40 24 42 Q16 40 10 34"/>
+  </g>
+
+  <!-- Center hub -->
+  <circle cx="24" cy="24" r="5" fill="#0c101a" stroke="url(#g1)" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="2.5" fill="#111623" stroke="#00e5ff" stroke-width="0.8" opacity="0.8"/>
+  
+  <!-- Lightning bolt in center -->
+  <path d="M23 21 L25.5 23.5 L23.5 23.5 L26 27 L23.5 24.5 L25.5 24.5 Z" fill="#00e5ff" opacity="0.95"/>
+  
+  <!-- Center dot -->
+  <circle cx="24" cy="24" r="1" fill="#ffffff" opacity="0.7"/>
+</svg>
