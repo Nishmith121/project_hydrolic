@@ -1,0 +1,469 @@
+import { useState, useEffect, useRef } from "react";
+import { Layout, Menu, Tag, Space, Spin, Typography, Badge, Flex } from "antd";
+import {
+  DashboardOutlined,
+  ControlOutlined,
+  AlertOutlined,
+  BarChartOutlined,
+  BulbOutlined,
+  UserOutlined,
+  AppstoreOutlined,
+} from "@ant-design/icons";
+import { C, THR, fmt, getStatus, conditionScore, buildAlerts } from "./config.js";
+import { palette } from "./theme.js";
+import MetricCard       from "./components/MetricCard.jsx";
+import TabbedChart      from "./components/TabbedChart.jsx";
+import AnomalyPanel     from "./components/AnomalyPanel.jsx";
+import GateControlPanel from "./components/GateControlPanel.jsx";
+import AlertsPanel      from "./components/AlertsPanel.jsx";
+import KPIPanel         from "./components/KPIPanel.jsx";
+import SidebarLeft      from "./components/SidebarLeft.jsx";
+import DiagnosticPanel  from "./components/DiagnosticPanel.jsx";
+import AiAlertsPage     from "./components/AiAlertsPage.jsx";
+import AiRecommendationsPage from "./components/AiRecommendationsPage.jsx";
+import AnalyticsCharts  from "./components/Charts.jsx";
+import ReportGenerator  from "./components/ReportGenerator.jsx";
+import TurbineModel3D   from "./components/TurbineModel3D.jsx";
+import StatusStrip      from "./components/StatusStrip.jsx";
+
+const { Header, Content, Sider } = Layout;
+const { Text } = Typography;
+
+const NAV_ITEMS = [
+  { key: "dashboard",  label: "Dashboard",          icon: <DashboardOutlined /> },
+  { key: "scada",      label: "SCADA Control",      icon: <ControlOutlined /> },
+  { key: "ai-alerts",  label: "AI & Alerts",        icon: <AlertOutlined /> },
+  { key: "ai-reco",    label: "AI Recommendations", icon: <BulbOutlined /> },
+  { key: "analytics",  label: "Analytics",          icon: <BarChartOutlined /> },
+  { key: "3d-model",   label: "3D Model",           icon: <AppstoreOutlined /> },
+];
+
+const API_URL  = "http://localhost:8000/api/live-data";
+const POLL_MS  = 1000;
+const MAX_HIST = 30;
+
+// ── Monitored sensors (with thresholds) ──────────────────────────────────────
+const MONITORED = (d) => [
+  { label: "Vibration",     value: fmt(d?.vibration_mms, 2),          unit: "mm/s", icon: "📳", thr: THR.vibration, raw: d?.vibration_mms },
+  { label: "Bearing Temp",  value: fmt(d?.bearing_temp_c),            unit: "°C",   icon: "🌡", thr: THR.bearing,   raw: d?.bearing_temp_c },
+  { label: "Stator Temp",   value: fmt(d?.stator_winding_temp_c),     unit: "°C",   icon: "🌡", thr: THR.stator,    raw: d?.stator_winding_temp_c },
+  { label: "Shaft Run-out", value: fmt(d?.shaft_runout_mm, 3),        unit: "mm",   icon: "🔩", thr: THR.shaft,     raw: d?.shaft_runout_mm },
+];
+
+// ── Secondary sensors ────────────────────────────────────────────────────────
+const SECONDARY = (d) => [
+  { label: "Reactive Power",    value: fmt(d?.reactive_power_mvar),       unit: "MVAR", icon: "⚡" },
+  { label: "Frequency",         value: fmt(d?.frequency_hz, 2),           unit: "Hz",   icon: "〰" },
+  { label: "Wicket Gate",       value: fmt(d?.wicket_gate_opening_pct),   unit: "%",    icon: "⚙" },
+  { label: "Gov. Oil Pressure", value: fmt(d?.governor_oil_pressure_bar), unit: "bar",  icon: "🛢" },
+  { label: "Draft Tube Press.", value: fmt(d?.draft_tube_pressure_bar,2), unit: "bar",  icon: "🌊" },
+  { label: "Cooling Flow",     value: fmt(d?.cooling_water_flow_ls),     unit: "L/s",  icon: "❄" },
+  { label: "Air Gap",          value: fmt(d?.air_gap_mm),                unit: "mm",   icon: "📏" },
+];
+
+// ── Section divider ──────────────────────────────────────────────────────────
+function SectionDivider({ title, color = C.primary }) {
+  return (
+    <div className="section-divider">
+      <div className="section-dot" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
+      <span className="section-label">{title}</span>
+      <div className="section-line" />
+    </div>
+  );
+}
+
+// ── Inline Logo SVG ──────────────────────────────────────────────────────────
+function TurbineLogo() {
+  return (
+    <div className="topbar-logo">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#10b981"/>
+            <stop offset="100%" stopColor="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <rect width="48" height="48" rx="12" fill="#071a2b"/>
+        <rect x="1" y="1" width="46" height="46" rx="11" fill="none" stroke="url(#logoGrad)" strokeWidth="1" opacity="0.5"/>
+        <g transform="translate(24, 24)">
+          <path d="M0 0 L-3 -16 Q0 -20 3 -16 Z" fill="url(#logoGrad)" opacity="0.9"/>
+          <path d="M0 0 L14 -8 Q18 -5 12 -4 Z" fill="url(#logoGrad)" opacity="0.8"/>
+          <path d="M0 0 L10 13 Q12 17 7 13 Z" fill="url(#logoGrad)" opacity="0.7"/>
+          <path d="M0 0 L-10 13 Q-12 17 -7 13 Z" fill="url(#logoGrad)" opacity="0.7"/>
+          <path d="M0 0 L-14 -8 Q-18 -5 -12 -4 Z" fill="url(#logoGrad)" opacity="0.8"/>
+        </g>
+        <g fill="none" stroke="#10b981" strokeWidth="1" strokeLinecap="round" opacity="0.35">
+          <path d="M10 16 Q16 10 24 8 Q32 10 38 16"/>
+          <path d="M38 34 Q32 40 24 42 Q16 40 10 34"/>
+        </g>
+        <circle cx="24" cy="24" r="5" fill="#071a2b" stroke="url(#logoGrad)" strokeWidth="1.5"/>
+        <circle cx="24" cy="24" r="2.5" fill="#0b2236" stroke="#10b981" strokeWidth="0.8" opacity="0.8"/>
+        <path d="M23 21 L25.5 23.5 L23.5 23.5 L26 27 L23.5 24.5 L25.5 24.5 Z" fill="#10b981" opacity="0.95"/>
+        <circle cx="24" cy="24" r="1" fill="#ffffff" opacity="0.7"/>
+      </svg>
+    </div>
+  );
+}
+
+// ── Financial Widget ──────────────────────────────────────────────────────────
+function FinancialWidget({ latest }) {
+  const power = latest?.active_power_mw || 0;
+  const ratePerMWh = 50; // $50 per MWh
+  const currentRevenuePerHour = power * ratePerMWh;
+  const isAnomaly = latest?.ml_insights?.is_anomaly;
+
+  return (
+    <div style={{ 
+      background: isAnomaly 
+        ? "linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05))" 
+        : "linear-gradient(145deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05))",
+      border: `1px solid ${isAnomaly ? "rgba(239, 68, 68, 0.5)" : "rgba(16, 185, 129, 0.5)"}`, 
+      boxShadow: "6px 6px 16px rgba(0,0,0,0.4), -4px -4px 10px rgba(255,255,255,0.02), inset 1px 1px 3px rgba(255,255,255,0.1)",
+      borderRadius: 14, padding: "16px 24px", marginTop: 16, marginBottom: 16,
+      display: "flex", justifyContent: "space-between", alignItems: "center"
+    }}>
+      <div>
+        <div style={{ color: "#a3c4d4", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>Live Revenue Generation</div>
+        <div style={{ color: isAnomaly ? "#ef4444" : "#10b981", fontSize: 28, fontWeight: "bold" }}>
+          ${currentRevenuePerHour.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style={{ fontSize: 16 }}>/ hr</span>
+        </div>
+      </div>
+      {isAnomaly && (
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: "#ef4444", fontSize: 13, fontWeight: "bold" }}>⚠️ Efficiency Drop Detected</div>
+          <div style={{ color: "#fca5a5", fontSize: 13 }}>Estimated Loss: $4,500/hr if unresolved</div>
+        </div>
+      )}
+      {!isAnomaly && (
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: "#10b981", fontSize: 13, fontWeight: "bold" }}>✓ Optimal Efficiency</div>
+          <div style={{ color: "#6ee7b7", fontSize: 13 }}>Operating at peak revenue capacity</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [isConnected, setIsConnected] = useState(false);
+  const [latest,  setLatest]  = useState(null);
+  const [history, setHistory] = useState([]);
+  const [status,  setStatus]  = useState("idle");
+  const [lastTs,  setLastTs]  = useState(null);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [gateConnected, setGateConnected] = useState(false);
+  const [activeUnit, setActiveUnit] = useState("turbine_01");
+  const tick = useRef(0);
+  const holdRef = useRef({ ml: null, mlExpiry: 0, alerts: {} });
+
+  // Reset history when switching units
+  useEffect(() => {
+    setHistory([]);
+    setLatest(null);
+    setStatus("idle");
+    tick.current = 0;
+  }, [activeUnit]);
+
+  useEffect(() => {
+    if (!isConnected) return;
+    let live = true;
+    setStatus("connecting");
+    async function poll() {
+      try {
+        const r = await fetch(`${API_URL}?unit=${activeUnit}`);
+        if (!r.ok) throw new Error();
+        const d = await r.json();
+        if (!live) return;
+        tick.current++;
+        setLatest(d);
+        setStatus("live");
+        setLastTs(new Date().toLocaleTimeString());
+        setHistory(prev => {
+          const next = [...prev, { ...d, t: tick.current }];
+          return next.length > MAX_HIST ? next.slice(-MAX_HIST) : next;
+        });
+      } catch { if (live) setStatus("error"); }
+    }
+    poll();
+    const id = setInterval(poll, POLL_MS);
+    return () => { live = false; clearInterval(id); };
+  }, [isConnected, activeUnit]);
+
+  // ── Welcome / Connect Screen ──
+  if (!isConnected) {
+    return (
+      <div className="loading-screen" style={{ background: "linear-gradient(160deg, #071a2b 0%, #0a2a3a 40%, #082a28 100%)" }}>
+        {/* Faint background grid */}
+        <div style={{ position: "absolute", inset: 0, opacity: 0.03, backgroundImage: "radial-gradient(circle, #10b981 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
+
+        <div className="fade-in" style={{
+          position: "relative", width: 520, maxWidth: "90vw",
+          border: "1.5px solid #06b6d4", borderRadius: 20,
+          background: "rgba(11, 34, 54, 0.85)",
+          backdropFilter: "blur(20px)",
+          boxShadow: "0 0 60px rgba(6, 182, 212, 0.15), inset 0 1px 0 rgba(255,255,255,0.04)",
+          padding: "48px 44px", textAlign: "center",
+        }}>
+          {/* Glow border corners */}
+          <div style={{ position: "absolute", top: -1, left: -1, right: -1, height: 2, background: "linear-gradient(90deg, transparent, #06b6d4, transparent)", borderRadius: "20px 20px 0 0" }} />
+          <div style={{ position: "absolute", bottom: -1, left: -1, right: -1, height: 2, background: "linear-gradient(90deg, transparent, #06b6d4, transparent)", borderRadius: "0 0 20px 20px" }} />
+
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: "#e8f4f8", marginBottom: 28, letterSpacing: -0.5 }}>
+            Welcome to <span style={{ color: "#06b6d4" }}>HYDRO</span>
+          </h1>
+
+          <p style={{ color: "#6a9bb5", fontSize: 15, lineHeight: 1.7, marginBottom: 16 }}>
+            HYDRO is designed to connect with real-time hydraulic turbine
+            machines to analyze operational data using AI.
+          </p>
+          <p style={{ color: "#6a9bb5", fontSize: 15, lineHeight: 1.7, marginBottom: 16 }}>
+            Since live factory machines are not available during this demo,
+            the app runs in <strong style={{ color: "#e8f4f8" }}>Simulation Mode</strong> by default.
+          </p>
+          <p style={{ color: "#6a9bb5", fontSize: 15, lineHeight: 1.7, marginBottom: 16 }}>
+            In this mode, the system generates realistic, real-time machine
+            data and processes it through the same AI model and pipeline
+            used for real-world deployments.
+          </p>
+          <p style={{ color: "#6a9bb5", fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
+            This allows you to experience the full functionality of
+            HYDRO exactly as it would work in a live factory environment.
+          </p>
+
+          <button
+            onClick={() => setIsConnected(true)}
+            style={{
+              width: "100%", padding: "16px 0",
+              border: "1.5px solid #06b6d4",
+              borderRadius: 12,
+              background: "transparent",
+              color: "#06b6d4",
+              fontSize: 16, fontWeight: 700,
+              letterSpacing: 2, textTransform: "uppercase",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              boxShadow: "0 0 20px rgba(6, 182, 212, 0.15)",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(6,182,212,0.12)"; e.currentTarget.style.boxShadow = "0 0 30px rgba(6,182,212,0.3)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "0 0 20px rgba(6,182,212,0.15)"; }}
+          >
+            Connect Model
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loading (brief state while first poll completes) ──
+  // Moved into the Content area below to prevent the entire layout from flickering
+
+  const score  = conditionScore(latest);
+  const rawAlerts = buildAlerts(latest);
+  const rawMl     = latest?.ml_insights;
+
+  // ── ALERTS & ML STABILIZATION (Latching for 2 minutes to prevent flicker) ──
+  const HOLD_TICKS = 120; // 120 seconds (2 minutes)
+  const currentTick = tick.current;
+
+  // Update ML Hold
+  if (rawMl?.is_anomaly) {
+    holdRef.current.ml = rawMl;
+    holdRef.current.mlExpiry = currentTick + HOLD_TICKS;
+  }
+  
+  let ml = rawMl;
+  // If live feed drops anomaly, but we are still in the hold period, force it to stay anomalous
+  if (!rawMl?.is_anomaly && currentTick < holdRef.current.mlExpiry) {
+    ml = holdRef.current.ml; 
+  }
+  const isAnomaly = ml?.is_anomaly;
+
+  // Update Alerts Hold
+  (rawAlerts || []).forEach(a => {
+    if (a.level !== 'ok') {
+      holdRef.current.alerts[a.title] = { data: a, expiry: currentTick + HOLD_TICKS };
+    }
+  });
+
+  // Build final stabilized alerts
+  const alerts = [];
+  const seenTitles = new Set();
+  
+  (rawAlerts || []).forEach(a => {
+    alerts.push(a);
+    seenTitles.add(a.title);
+  });
+  
+  Object.keys(holdRef.current.alerts).forEach(title => {
+    const heldAlert = holdRef.current.alerts[title];
+    if (currentTick < heldAlert.expiry && !seenTitles.has(title)) {
+      alerts.push(heldAlert.data);
+    }
+  });
+
+  return (
+    <Layout style={{ minHeight: "100vh" }}>
+
+      {/* ═══ HEADER ════════════════════════════════════════════════════════ */}
+      <Header style={{
+        display: "flex", alignItems: "center", gap: 24, padding: "0 24px",
+        zIndex: 50, height: 64,
+      }}>
+        {/* Brand */}
+        <Flex align="center" gap={12} style={{ width: 220 }}>
+          <TurbineLogo />
+          <Text strong style={{ fontSize: 17, color: "#e8f4f8", letterSpacing: -0.3 }}>
+            HYDRO
+          </Text>
+        </Flex>
+
+        {/* Navigation */}
+        <Menu
+          mode="horizontal"
+          theme="dark"
+          selectedKeys={[activePage]}
+          onClick={({ key }) => setActivePage(key)}
+          items={NAV_ITEMS}
+          className="topbar-menu"
+          style={{
+            flex: 1, background: "transparent", borderBottom: "none",
+            fontSize: 13, fontWeight: 500,
+          }}
+        />
+
+        {/* Status Indicators */}
+        <Flex align="center" gap={12}>
+          {status === "error" ? (
+            <Tag color="error" style={{ margin: 0 }}>⚠ API Offline</Tag>
+          ) : (
+            <Flex align="center" gap={6}>
+              <span className="dot-live" />
+              <Text style={{ color: palette.textGray, fontSize: 12 }}>LIVE · {lastTs}</Text>
+            </Flex>
+          )}
+          {ml && !ml.error && (
+            <Tag color={isAnomaly ? "error" : "success"} style={{ margin: 0, fontWeight: 600 }}>
+              {isAnomaly ? "🚨 ANOMALY" : "✓ HEALTHY"}
+            </Tag>
+          )}
+          <Tag color={score >= 90 ? "success" : score >= 75 ? "warning" : "error"} style={{ margin: 0, fontWeight: 600 }}>
+            Score {score}/100
+          </Tag>
+          <select 
+            value={activeUnit} 
+            onChange={e => setActiveUnit(e.target.value)}
+            style={{
+              background: palette.bgCard, border: `1px solid ${palette.border}`, color: palette.textMuted,
+              padding: "2px 8px", borderRadius: 4, outline: "none", cursor: "pointer", fontSize: 12, fontWeight: "bold"
+            }}
+          >
+            <option value="turbine_01">Turbine 01</option>
+            <option value="turbine_02">Turbine 02</option>
+          </select>
+        </Flex>
+      </Header>
+
+      {/* ═══ BODY ══════════════════════════════════════════════════════════ */}
+      <Layout>
+        {activePage === "dashboard" && (
+          <Sider width={260} style={{ overflow: "auto", height: "calc(100vh - 64px)" }}>
+            <SidebarLeft />
+          </Sider>
+        )}
+
+        <Content style={{ padding: 24, overflow: "auto", height: "calc(100vh - 64px)" }}>
+
+          {/* ─── LOADING STATE ────────────────────────────────────────── */}
+          {(status === "connecting" || status === "idle" || !latest) ? (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6 }}>
+              <Spin size="large" />
+              <Text style={{ color: C.primary, fontSize: 12, letterSpacing: 3, textTransform: "uppercase", marginTop: 16 }}>
+                Connecting to {activeUnit.replace('_', ' ')}...
+              </Text>
+            </div>
+          ) : (
+            <div key={activeUnit}>
+              {/* ─── DASHBOARD ────────────────────────────────────────────── */}
+              {activePage === "dashboard" && (
+                <div className="fade-in">
+                  <StatusStrip latest={latest} />
+                  <FinancialWidget latest={latest} />
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, marginTop: 24 }}>
+                    <div>
+                      <SectionDivider title="Secondary Sensors" color={C.teal} />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                        {SECONDARY(latest).map(c => (
+                          <MetricCard key={c.label} {...c} status="normal" compact />
+                        ))}
+                      </div>
+                    </div>
+                    <KPIPanel latest={latest} score={score} />
+                  </div>
+
+                  <div style={{ marginTop: 24 }}>
+                    <SectionDivider title="Monitored Parameters" color={C.amber} />
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+                      {MONITORED(latest).map(c => (
+                        <MetricCard key={c.label} {...c} status={c.thr ? getStatus(c.raw, c.thr) : "normal"} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── SCADA CONTROL ────────────────────────────────────────── */}
+              {activePage === "scada" && (
+                <div className="fade-in">
+                  <GateControlPanel latest={latest} gateConnected={gateConnected} setGateConnected={setGateConnected} activeUnit={activeUnit} />
+                  <div style={{ marginTop: 24 }}>
+                    <SectionDivider title="System Response Trends" color={C.secondary} />
+                    <TabbedChart history={history} />
+                  </div>
+                </div>
+              )}
+
+              {/* ─── AI & ALERTS ──────────────────────────────────────────── */}
+              {activePage === "ai-alerts" && (
+                <div className="fade-in" style={{ height: "100%" }}>
+                  <AiAlertsPage alerts={alerts} mlInsights={ml} history={history} />
+                </div>
+              )}
+
+              {/* ─── AI RECOMMENDATIONS ──────────────────────────────────── */}
+              {activePage === "ai-reco" && (
+                <div className="fade-in">
+                  <AiRecommendationsPage mlInsights={ml} latest={latest} history={history} />
+                </div>
+              )}
+
+              {/* ─── ANALYTICS ────────────────────────────────────────────── */}
+              {activePage === "analytics" && (
+                <div className="fade-in">
+                  <SectionDivider title="Live Telemetry Trends" color={C.secondary} />
+                  <TabbedChart history={history} />
+                  <div style={{ marginTop: 24 }}>
+                    <SectionDivider title="Deep Analytics" color={C.purple} />
+                    <AnalyticsCharts latest={latest} history={history} />
+                  </div>
+                  <div style={{ marginTop: 32 }}>
+                    <SectionDivider title="Export & Reporting" color={C.cyan} />
+                    <ReportGenerator latest={latest} activeUnit={activeUnit} history={history} />
+                  </div>
+                </div>
+              )}
+              {/* ─── 3D MODEL ──────────────────────────────────────────── */}
+              {activePage === "3d-model" && (
+                <div className="fade-in">
+                  <TurbineModel3D latest={latest} alerts={alerts} gateConnected={gateConnected} />
+                </div>
+              )}
+            </div>
+          )}
+
+        </Content>
+      </Layout>
+    </Layout>
+  );
+}
