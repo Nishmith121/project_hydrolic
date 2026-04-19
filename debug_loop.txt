@@ -1,0 +1,5 @@
+addr 0: ReadHoldingRegistersResponse (1)
+addr 1: Exception Response(131, 3, IllegalAddress)
+addr 2: Exception Response(131, 3, IllegalAddress)
+addr 3: Exception Response(131, 3, IllegalAddress)
+addr 4: Exception Response(131, 3, IllegalAddress)
