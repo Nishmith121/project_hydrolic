@@ -19,7 +19,7 @@ function AlertItem({ alert }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold" style={{ color: s.text }}>{alert.title}</p>
-        <p className="text-xs text-slate-500 mt-0.5 truncate">{alert.desc}</p>
+        <p className="text-xs text-slate-500 mt-0.5 truncate tabular-nums">{alert.desc}</p>
       </div>
       {alert.level !== "ok" && (
         <span className="w-2 h-2 rounded-full mt-1.5 shrink-0 animate-pulse"
@@ -46,12 +46,12 @@ function CircleKpi({ label, value, max = 100, unit, color }) {
             style={{ filter: `drop-shadow(0 0 4px ${color})`, transition: "stroke-dasharray 0.6s ease" }} />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-bold" style={{ color }}>{Math.round((value / max) * 100)}%</span>
+          <span className="text-xs font-bold tabular-nums" style={{ color }}>{Math.round((value / max) * 100)}%</span>
         </div>
       </div>
       <div>
         <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-sm font-bold text-white">{Number(value).toFixed(1)} <span className="text-xs text-slate-500">{unit}</span></p>
+        <p className="text-sm font-bold text-white tabular-nums">{Number(value).toFixed(1)} <span className="text-xs text-slate-500 font-normal">{unit}</span></p>
       </div>
     </div>
   );
@@ -95,7 +95,7 @@ export default function Sidebar({ alerts, latest, score }) {
         <div className="rounded-xl p-3" style={{ background: "#111827", border: `1px solid ${C.purple}33` }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-slate-400">Grid Frequency</span>
-            <span className="text-sm font-bold" style={{ color: C.purple }}>
+            <span className="text-sm font-bold tabular-nums" style={{ color: C.purple }}>
               {latest ? Number(latest.frequency_hz).toFixed(2) : "—"} Hz
             </span>
           </div>

@@ -25,6 +25,12 @@ const CARDS = (d) => [
   { label: "Air Gap",          value: fmt(d?.air_gap_mm),                 unit: "mm",   icon: "📏", thr: null },
 ];
 
+const AUX_CARDS = (d) => [
+  { label: "Reactive Power",   value: fmt(d?.reactive_power_mvar),        unit: "MVAR", icon: "⚡", thr: null },
+  { label: "Frequency",        value: fmt(d?.frequency_hz, 2),            unit: "Hz",   icon: "〰", thr: null },
+  { label: "Wicket Gate",      value: fmt(d?.wicket_gate_opening_pct),    unit: "%",    icon: "⚙", thr: null },
+];
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [latest,  setLatest]  = useState(null);
@@ -139,20 +145,7 @@ export default function App() {
       {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
       <main className="flex-1 px-5 py-5 max-w-screen-2xl mx-auto w-full space-y-5">
 
-        {/* Row 1: Tabbed Chart + Sidebar */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-5">
-          <TabbedChart history={history} />
-          <Sidebar alerts={alerts} latest={latest} score={score} />
-        </div>
-
-        {/* Row 2: Radar + Bar + Donut */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <HealthRadar  data={latest} />
-          <PowerBar     history={history} />
-          <EnergyDonut  data={latest} />
-        </div>
-
-        {/* Row 3: Sensor KPI cards */}
+        {/* Row 1: Sensor KPI cards */}
         <div>
           <p className="text-xs uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
             <span className="w-4 h-px" style={{ background: C.cyan }} />
@@ -171,6 +164,40 @@ export default function App() {
               />
             ))}
           </div>
+        </div>
+
+        {/* Row 2: Auxiliary parameters */}
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2 mt-2">
+            <span className="w-4 h-px" style={{ background: C.purple }} />
+            Auxiliary Parameters
+            <span className="flex-1 h-px" style={{ background: "linear-gradient(90deg,#1a2540,transparent)" }} />
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {AUX_CARDS(latest).map((c) => (
+              <MetricCard
+                key={c.label}
+                label={c.label}
+                value={c.value}
+                unit={c.unit}
+                icon={c.icon}
+                status={c.thr ? getStatus(c.raw, c.thr) : "normal"}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Row 3: Tabbed Chart + Sidebar */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-5">
+          <TabbedChart history={history} />
+          <Sidebar alerts={alerts} latest={latest} score={score} />
+        </div>
+
+        {/* Row 4: Radar + Bar + Donut */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <HealthRadar  data={latest} />
+          <PowerBar     history={history} />
+          <EnergyDonut  data={latest} />
         </div>
 
       </main>
