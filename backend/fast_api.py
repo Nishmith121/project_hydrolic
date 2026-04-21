@@ -20,6 +20,9 @@
 """
 
 import logging
+import os
+import numpy as np
+import joblib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from influxdb_client import InfluxDBClient
@@ -54,6 +57,33 @@ app.add_middleware(
 # Initialize InfluxDB Client globally so we don't recreate it on every request
 influx_client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 query_api = influx_client.query_api()
+
+# Load the ML model and scaler globally
+base_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(base_dir, 'turbine_model.joblib')
+scaler_path = os.path.join(base_dir, 'turbine_scaler.joblib')
+
+ml_model = None
+ml_scaler = None
+
+try:
+    if os.path.exists(model_path) and os.path.exists(scaler_path):
+        ml_model = joblib.load(model_path)
+        ml_scaler = joblib.load(scaler_path)
+        logger.info("ML Model and Scaler loaded successfully.")
+    else:
+        logger.warning("ML Model or Scaler not found. Anomaly detection will be disabled.")
+except Exception as e:
+    logger.error(f"Failed to load ML model: {e}")
+
+# Expected features for the ML model
+ML_FEATURES = [
+    'rotational_speed_rpm', 'active_power_mw', 'reactive_power_mvar', 'frequency_hz', 
+    'water_flow_rate_m3s', 'net_head_m', 'wicket_gate_opening_pct', 
+    'vibration_mms', 'shaft_runout_mm', 'bearing_temp_c', 
+    'air_gap_mm', 'draft_tube_pressure_bar', 'cooling_water_flow_ls', 
+    'stator_winding_temp_c', 'governor_oil_pressure_bar'
+]
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -98,6 +128,35 @@ async def get_live_data():
         if "_time" in record:
             cleaned_record["timestamp"] = record["_time"].isoformat()
 
+        # Generate ML Insights if the model is loaded
+        if ml_model and ml_scaler:
+            try:
+                # Extract features in the correct order
+                feature_values = []
+                for f in ML_FEATURES:
+                    val = cleaned_record.get(f, 0.0)
+                    feature_values.append(float(val))
+                
+                # Reshape for sklearn
+                x_input = np.array(feature_values).reshape(1, -1)
+                
+                # Scale and predict
+                x_scaled = ml_scaler.transform(x_input)
+                prediction = ml_model.predict(x_scaled)[0]
+                score = ml_model.score_samples(x_scaled)[0]
+                
+                # 1 is normal, -1 is anomaly in IsolationForest
+                is_anomaly = bool(prediction == -1)
+                
+                cleaned_record["ml_insights"] = {
+                    "is_anomaly": is_anomaly,
+                    "anomaly_score": float(score),
+                    "status_message": "CRITICAL: Anomaly Detected!" if is_anomaly else "System Healthy"
+                }
+            except Exception as ml_err:
+                logger.error(f"Error during ML prediction: {ml_err}")
+                cleaned_record["ml_insights"] = {"error": "Prediction failed"}
+
         return cleaned_record
         
     except Exception as e:
@@ -111,4 +170,4 @@ async def get_live_data():
 if __name__ == "__main__":
     # Provides an alternative way to run without explicitly calling uvicorn in CLI
     import uvicorn
-    uvicorn.run("fastapi_api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("fast_api:app", host="0.0.0.0", port=8000, reload=False)

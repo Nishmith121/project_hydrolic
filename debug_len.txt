@@ -1,6 +1,0 @@
-len 1: ReadHoldingRegistersResponse (1)
-len 2: Exception Response(131, 3, IllegalAddress)
-len 5: Exception Response(131, 3, IllegalAddress)
-len 10: Exception Response(131, 3, IllegalAddress)
-len 15: Exception Response(131, 3, IllegalAddress)
-len 20: Exception Response(131, 3, IllegalAddress)
