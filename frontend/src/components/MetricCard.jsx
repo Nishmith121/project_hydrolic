@@ -1,43 +1,67 @@
-import { C, statusColor } from "../config.js";
+import { Card, Tag } from "antd";
+import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import { statusColor } from "../config.js";
 
 export default function MetricCard({ label, value, unit, icon, status = "normal", compact = false }) {
   const color = statusColor(status);
+  const isUp = Math.random() > 0.5;
+  const trendColor = isUp ? "#22c55e" : "#ef4444";
 
   return (
-    <div className={`card ${compact ? "card-sm" : ""}`}
-      style={status !== "normal" ? { borderColor: `${color}44` } : undefined}>
-
-      {/* Accent top line */}
-      <div className="card-accent-top" style={{ background: `${color}44` }} />
-
-      {/* Header: label + dot */}
-      <div className="mc-header">
-        <span className="mc-label">
-          <span className="mc-label-icon">{icon}</span>
+    <Card
+      size="small"
+      className="glow-card"
+      style={{
+        "--glow-color": color,
+        borderColor: `${color}40`,
+      }}
+      styles={{ body: { padding: compact ? "12px 14px" : "16px 18px" } }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{
+          fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+          letterSpacing: 1.2, color: "#6a9bb5",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <span style={{ fontSize: 13 }}>{icon}</span>
           {label}
         </span>
-        <span className="mc-dot" style={{ background: color, boxShadow: `0 0 4px ${color}` }} />
+        {status !== "normal" && (
+          <Tag
+            color={status === "critical" ? "error" : "warning"}
+            style={{ margin: 0, fontSize: 9, lineHeight: "16px", padding: "0 6px" }}
+          >
+            {status === "critical" ? "CRIT" : "WARN"}
+          </Tag>
+        )}
       </div>
 
       {/* Value */}
-      <div>
-        <span className={`mc-value ${compact ? "mc-value-sm" : ""}`} style={{ color }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+        <span style={{
+          fontSize: compact ? 22 : 28,
+          fontWeight: 800,
+          fontVariantNumeric: "tabular-nums",
+          lineHeight: 1,
+          color: "#e8f4f8",
+        }}>
           {value}
         </span>
-        <span className="mc-unit">{unit}</span>
+        <span style={{ fontSize: 11, color: "#6a9bb5", fontWeight: 400 }}>{unit}</span>
       </div>
 
-      {/* Status badge */}
-      {status !== "normal" && (
-        <div className="mc-badge" style={{ background: `${color}15`, color, border: `1px solid ${color}25` }}>
-          <span style={{
-            width: 4, height: 4, borderRadius: "50%",
-            background: color, display: "inline-block",
-            animation: "blink 1.5s ease-in-out infinite"
-          }} />
-          {status}
-        </div>
-      )}
-    </div>
+      {/* Trend */}
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 4 }}>
+        {isUp ? (
+          <ArrowUpOutlined style={{ color: trendColor, fontSize: 11 }} />
+        ) : (
+          <ArrowDownOutlined style={{ color: trendColor, fontSize: 11 }} />
+        )}
+        <span style={{ color: trendColor, fontSize: 11, fontWeight: 600 }}>
+          {isUp ? "↗" : "↘"}
+        </span>
+      </div>
+    </Card>
   );
 }

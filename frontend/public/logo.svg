@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Core gradient: Cyan to Blue -->
+    <linearGradient id="cyanBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="50%" stop-color="#00b8d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+
+    <!-- Accent gradient: Cyan to Purple -->
+    <linearGradient id="cyanPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <!-- Water shimmer gradient -->
+    <linearGradient id="waterShimmer" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Outer glow -->
+    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feFlood flood-color="#00e5ff" flood-opacity="0.3"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Inner shadow -->
+    <filter id="innerDepth">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Radial glow for center -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.6"/>
+      <stop offset="60%" stop-color="#00e5ff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ═══ BACKGROUND CIRCLE ═══ -->
+  <circle cx="256" cy="256" r="240" fill="#0c101a" stroke="url(#cyanBlue)" stroke-width="3" opacity="0.9"/>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#00e5ff" stroke-width="0.5" opacity="0.15"/>
+
+  <!-- ═══ OUTER RING — Measurement Ticks ═══ -->
+  <!-- Major ticks (12 positions) -->
+  <g stroke="#00e5ff" stroke-width="2" opacity="0.3">
+    <line x1="256" y1="36" x2="256" y2="56"/>
+    <line x1="366" y1="66" x2="356.3" y2="83.2" />
+    <line x1="446" y1="146" x2="428.8" y2="155.7"/>
+    <line x1="476" y1="256" x2="456" y2="256"/>
+    <line x1="446" y1="366" x2="428.8" y2="356.3"/>
+    <line x1="366" y1="446" x2="356.3" y2="428.8"/>
+    <line x1="256" y1="476" x2="256" y2="456"/>
+    <line x1="146" y1="446" x2="155.7" y2="428.8"/>
+    <line x1="66" y1="366" x2="83.2" y2="356.3"/>
+    <line x1="36" y1="256" x2="56" y2="256"/>
+    <line x1="66" y1="146" x2="83.2" y2="155.7"/>
+    <line x1="146" y1="66" x2="155.7" y2="83.2"/>
+  </g>
+
+  <!-- ═══ TURBINE BLADES (5 blades, rotational symmetry) ═══ -->
+  <g filter="url(#glow)">
+    <!-- Blade 1 — Top -->
+    <path d="M256 256 L248 130 Q256 80 264 130 Z" fill="url(#cyanBlue)" opacity="0.85"/>
+    <path d="M256 256 L248 130 Q256 80 264 130 Z" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5"/>
+
+    <!-- Blade 2 — Top Right -->
+    <path d="M256 256 L370 186 Q410 166 358 204 Z" fill="url(#cyanBlue)" opacity="0.75"/>
+    <path d="M256 256 L370 186 Q410 166 358 204 Z" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5"/>
+
+    <!-- Blade 3 — Bottom Right -->
+    <path d="M256 256 L346 352 Q374 396 330 340 Z" fill="url(#cyanBlue)" opacity="0.65"/>
+    <path d="M256 256 L346 352 Q374 396 330 340 Z" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5"/>
+
+    <!-- Blade 4 — Bottom Left -->
+    <path d="M256 256 L166 352 Q138 396 182 340 Z" fill="url(#cyanBlue)" opacity="0.65"/>
+    <path d="M256 256 L166 352 Q138 396 182 340 Z" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5"/>
+
+    <!-- Blade 5 — Top Left -->
+    <path d="M256 256 L142 186 Q102 166 154 204 Z" fill="url(#cyanBlue)" opacity="0.75"/>
+    <path d="M256 256 L142 186 Q102 166 154 204 Z" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5"/>
+  </g>
+
+  <!-- ═══ STYLIZED CURVED BLADES (Francis Turbine Runner) ═══ -->
+  <g filter="url(#outerGlow)">
+    <!-- Curved blade 1 -->
+    <path d="M256 200 Q220 140 200 90 Q210 85 230 100 Q245 140 256 190 Z" 
+          fill="url(#cyanBlue)" opacity="0.9"/>
+    <!-- Curved blade 2 -->
+    <path d="M300 220 Q360 190 410 170 Q415 180 400 200 Q355 210 305 230 Z" 
+          fill="url(#cyanBlue)" opacity="0.8"/>
+    <!-- Curved blade 3 -->
+    <path d="M290 290 Q340 340 370 390 Q360 398 345 385 Q320 340 280 295 Z" 
+          fill="url(#cyanBlue)" opacity="0.7"/>
+    <!-- Curved blade 4 -->
+    <path d="M222 290 Q172 340 142 390 Q152 398 167 385 Q192 340 232 295 Z" 
+          fill="url(#cyanBlue)" opacity="0.7"/>
+    <!-- Curved blade 5 -->
+    <path d="M212 220 Q152 190 102 170 Q97 180 112 200 Q157 210 207 230 Z" 
+          fill="url(#cyanBlue)" opacity="0.8"/>
+  </g>
+
+  <!-- ═══ WATER FLOW ARCS ═══ -->
+  <g fill="none" stroke="url(#waterShimmer)" stroke-linecap="round">
+    <!-- Outer flow ring -->
+    <path d="M130 180 Q180 120 256 100 Q332 120 382 180" stroke-width="2.5" opacity="0.5"/>
+    <path d="M382 340 Q332 400 256 416 Q180 400 130 340" stroke-width="2.5" opacity="0.5"/>
+
+    <!-- Spiral water flow lines -->
+    <path d="M100 256 Q140 200 200 170 Q256 150 312 170 Q370 200 400 256" 
+          stroke-width="1.5" opacity="0.3"/>
+    <path d="M110 290 Q150 340 210 370 Q256 386 302 370 Q362 340 402 290" 
+          stroke-width="1.5" opacity="0.3"/>
+  </g>
+
+  <!-- ═══ CENTER HUB ═══ -->
+  <!-- Hub glow -->
+  <circle cx="256" cy="256" r="50" fill="url(#centerGlow)"/>
+
+  <!-- Hub ring -->
+  <circle cx="256" cy="256" r="32" fill="#0c101a" stroke="url(#cyanBlue)" stroke-width="3"/>
+  <circle cx="256" cy="256" r="28" fill="none" stroke="#00e5ff" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Hub inner -->
+  <circle cx="256" cy="256" r="18" fill="#111623" stroke="#00e5ff" stroke-width="1.5" opacity="0.8"/>
+
+  <!-- Hub center dot -->
+  <circle cx="256" cy="256" r="6" fill="#00e5ff" opacity="0.9"/>
+  <circle cx="256" cy="256" r="3" fill="#ffffff" opacity="0.8"/>
+
+  <!-- ═══ LIGHTNING BOLT (Energy Symbol) ═══ -->
+  <g filter="url(#glow)" transform="translate(256, 256)">
+    <path d="M-5 -14 L3 -2 L-1 -2 L5 14 L-3 2 L1 2 Z" 
+          fill="#00e5ff" opacity="0.95"/>
+  </g>
+
+  <!-- ═══ DECORATIVE DOTS (Data Points) ═══ -->
+  <g fill="#00e5ff">
+    <circle cx="256" cy="64" r="3" opacity="0.6"/>
+    <circle cx="422" cy="150" r="2.5" opacity="0.5"/>
+    <circle cx="448" cy="256" r="3" opacity="0.6"/>
+    <circle cx="422" cy="362" r="2.5" opacity="0.5"/>
+    <circle cx="256" cy="448" r="3" opacity="0.6"/>
+    <circle cx="90" cy="362" r="2.5" opacity="0.5"/>
+    <circle cx="64" cy="256" r="3" opacity="0.6"/>
+    <circle cx="90" cy="150" r="2.5" opacity="0.5"/>
+  </g>
+</svg>

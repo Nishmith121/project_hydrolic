@@ -1,14 +1,18 @@
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Palette (Blue-Green Oceanic) ─────────────────────────────────────────────
 export const C = {
-  cyan:   "#00d4ff",
-  amber:  "#f59e0b",
-  red:    "#ef4444",
-  green:  "#22c55e",
-  purple: "#a855f7",
-  teal:   "#14b8a6",
-  pink:   "#ec4899",
-  card:   "#0d1429",
-  border: "#1a2540",
+  primary:  "#10b981",   // Emerald green — main accent
+  secondary:"#06b6d4",   // Cyan
+  blue:     "#3b82f6",
+  teal:     "#14b8a6",
+  emerald:  "#34d399",
+  aqua:     "#22d3ee",
+  sky:      "#38bdf8",
+  mint:     "#6ee7b7",
+  green:    "#22c55e",
+  amber:    "#f59e0b",
+  red:      "#ef4444",
+  purple:   "#a78bfa",
+  pink:     "#f472b6",
 };
 
 // ── Thresholds ────────────────────────────────────────────────────────────────
@@ -21,11 +25,11 @@ export const THR = {
 
 // ── Chart tab definitions ─────────────────────────────────────────────────────
 export const TABS = [
-  { key: "vibration_mms",       label: "Vibration",    unit: "mm/s", color: C.amber,  domain: [1.5, 5] },
-  { key: "active_power_mw",     label: "Power",        unit: "MW",   color: C.cyan,   domain: [100, 140] },
-  { key: "bearing_temp_c",      label: "Bearing Temp", unit: "°C",   color: C.purple, domain: [62, 68] },
-  { key: "water_flow_rate_m3s", label: "Flow Rate",    unit: "m³/s", color: C.green,  domain: [75, 95] },
-  { key: "frequency_hz",        label: "Frequency",    unit: "Hz",   color: C.teal,   domain: [49.5, 50.5] },
+  { key: "vibration_mms",       label: "Vibration",    unit: "mm/s", color: C.amber,    domain: [1.5, 5] },
+  { key: "active_power_mw",     label: "Power",        unit: "MW",   color: C.primary,  domain: [100, 140] },
+  { key: "bearing_temp_c",      label: "Bearing Temp", unit: "°C",   color: C.purple,   domain: [62, 68] },
+  { key: "water_flow_rate_m3s", label: "Flow Rate",    unit: "m³/s", color: C.aqua,     domain: [75, 95] },
+  { key: "frequency_hz",        label: "Frequency",    unit: "Hz",   color: C.sky,      domain: [49.5, 50.5] },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -39,7 +43,7 @@ export function getStatus(value, thr) {
 }
 
 export function statusColor(s) {
-  return { normal: C.cyan, warning: C.amber, critical: C.red }[s] ?? C.cyan;
+  return { normal: C.primary, warning: C.amber, critical: C.red }[s] ?? C.primary;
 }
 
 export function conditionScore(d) {

@@ -1,124 +1,175 @@
-import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie,
-} from "recharts";
+import { Card, Flex, Typography } from "antd";
+import { Radar, Column, Pie } from "@ant-design/charts";
 import { C, buildRadar, buildDonut, fmt } from "../config.js";
 
-const DONUT_COLORS = [C.cyan, C.amber, C.purple, C.red];
+const { Text } = Typography;
 
-// ── Radar ─────────────────────────────────────────────────────────────────────
-export function HealthRadar({ data }) {
+// ── Health Radar ──────────────────────────────────────────────────────────────
+function HealthRadar({ data }) {
   const rd = buildRadar(data);
+  const config = {
+    data: rd,
+    xField: "subject",
+    yField: "value",
+    height: 220,
+    area: {
+      style: { fill: `${C.primary}25`, fillOpacity: 0.3 },
+    },
+    line: {
+      style: { stroke: C.primary, strokeWidth: 2 },
+    },
+    point: {
+      style: { fill: C.primary, stroke: C.primary, r: 3 },
+    },
+    axis: {
+      x: { label: { style: { fill: "#6a9bb5", fontSize: 10 } }, grid: true },
+      y: { label: false, domain: [0, 100], grid: { style: { stroke: "#164260" } } },
+    },
+    theme: {
+      view: { viewFill: "transparent" },
+    },
+  };
+
   return (
-    <div className="panel fade-in">
-      <div className="panel-header" style={{ marginBottom: 8 }}>
-        <span className="panel-title">Equipment Health</span>
-        <span style={{ fontSize: 9, color: "#64748b" }}>Multi-dimensional</span>
-      </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <RadarChart data={rd} margin={{ top: 4, right: 16, bottom: 4, left: 16 }}>
-          <PolarGrid stroke="#1e293b" />
-          <PolarAngleAxis dataKey="subject" tick={{ fill: "#64748b", fontSize: 10 }} />
-          <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-          <Radar dataKey="value" stroke={C.cyan} fill={C.cyan} fillOpacity={0.15} strokeWidth={2}
-            style={{ filter: `drop-shadow(0 0 4px ${C.cyan})` }} />
-        </RadarChart>
-      </ResponsiveContainer>
-    </div>
+    <Card styles={{ body: { padding: 16 } }}>
+      <Flex align="center" justify="space-between" style={{ marginBottom: 10 }}>
+        <Text strong style={{ fontSize: 13, color: "#e8f4f8" }}>Equipment Health</Text>
+        <Text style={{ fontSize: 10, color: "#4a7a92" }}>Multi-dimensional</Text>
+      </Flex>
+      <Radar {...config} />
+    </Card>
   );
 }
 
-// ── Bar Chart ─────────────────────────────────────────────────────────────────
-export function PowerBar({ history }) {
+// ── Power Bar Chart ───────────────────────────────────────────────────────────
+function PowerBar({ history }) {
   const slice = history.slice(-12);
+  const chartData = slice.map((d, i) => ({
+    index: i + 1,
+    power: d.active_power_mw ?? 0,
+    isLatest: i === slice.length - 1,
+  }));
+
+  const config = {
+    data: chartData,
+    xField: "index",
+    yField: "power",
+    height: 220,
+    style: {
+      fill: (datum) => datum.isLatest ? C.primary : C.amber,
+      radiusTopLeft: 4,
+      radiusTopRight: 4,
+    },
+    axis: {
+      x: { label: false, line: false, tick: false },
+      y: {
+        domain: [100, 140],
+        label: { style: { fill: "#4a7a92", fontSize: 10 } },
+        grid: { style: { stroke: "#164260", strokeDasharray: "3 3" } },
+        line: false, tick: false,
+      },
+    },
+    tooltip: {
+      channel: "y",
+      valueFormatter: (v) => `${Number(v).toFixed(1)} MW`,
+    },
+    theme: {
+      view: { viewFill: "transparent" },
+    },
+  };
+
   return (
-    <div className="panel fade-in">
-      <div className="panel-header" style={{ marginBottom: 8 }}>
-        <span className="panel-title">Power History</span>
-        <span style={{ fontSize: 9, color: "#64748b" }}>Last 12 readings</span>
-      </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={slice} margin={{ top: 4, right: 4, left: -22, bottom: 0 }} barSize={10}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-          <XAxis dataKey="t" hide />
-          <YAxis domain={[100, 140]} tick={{ fill: "#475569", fontSize: 10 }} axisLine={false} tickLine={false} />
-          <Tooltip
-            cursor={{ fill: `${C.amber}08` }}
-            content={({ active, payload }) => active && payload?.length ? (
-              <div style={{ background: "rgba(6,8,15,0.95)", border: `1px solid ${C.amber}44`, borderRadius: 6, padding: "4px 10px" }}>
-                <span style={{ color: C.amber, fontFamily: "monospace", fontSize: 12 }}>
-                  {fmt(payload[0].value)} MW
-                </span>
-              </div>
-            ) : null}
-          />
-          <Bar dataKey="active_power_mw" radius={[3, 3, 0, 0]}>
-            {slice.map((_, i) => (
-              <Cell key={i}
-                fill={i === slice.length - 1 ? C.cyan : C.amber}
-                style={{ filter: `drop-shadow(0 0 3px ${i === slice.length - 1 ? C.cyan : C.amber})` }} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <Card styles={{ body: { padding: 16 } }}>
+      <Flex align="center" justify="space-between" style={{ marginBottom: 10 }}>
+        <Text strong style={{ fontSize: 13, color: "#e8f4f8" }}>Power History</Text>
+        <Text style={{ fontSize: 10, color: "#4a7a92" }}>Last 12 readings</Text>
+      </Flex>
+      <Column {...config} />
+    </Card>
   );
 }
 
-// ── Donut ─────────────────────────────────────────────────────────────────────
-const DonutLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 1.35;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  return percent > 0.08 ? (
-    <text x={x} y={y} fill="#94a3b8" textAnchor="middle" dominantBaseline="central" fontSize={9}>
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  ) : null;
-};
-
-export function EnergyDonut({ data }) {
+// ── Energy Donut ──────────────────────────────────────────────────────────────
+function EnergyDonut({ data }) {
   const dd = buildDonut(data);
   const total = dd.reduce((s, d) => s + d.value, 0);
+  const COLORS = [C.primary, C.amber, C.purple, C.red];
+
+  const config = {
+    data: dd,
+    angleField: "value",
+    colorField: "name",
+    height: 220,
+    innerRadius: 0.65,
+    legend: {
+      color: {
+        position: "bottom",
+        itemLabelFill: "#6a9bb5",
+        itemLabelFontSize: 10,
+      },
+    },
+    style: {
+      fill: (datum) => {
+        const idx = dd.findIndex(d => d.name === datum.name);
+        return COLORS[idx] || C.primary;
+      },
+      stroke: "transparent",
+    },
+    label: {
+      text: (datum) => {
+        const pct = ((datum.value / total) * 100).toFixed(0);
+        return pct > 8 ? `${pct}%` : "";
+      },
+      style: { fill: "#a3c4d4", fontSize: 10 },
+    },
+    annotations: [
+      {
+        type: "text",
+        style: {
+          text: `${fmt(total, 0)}`,
+          x: "50%",
+          y: "46%",
+          textAlign: "center",
+          fontSize: 20,
+          fontWeight: 800,
+          fill: C.primary,
+        },
+      },
+      {
+        type: "text",
+        style: {
+          text: "MW Total",
+          x: "50%",
+          y: "56%",
+          textAlign: "center",
+          fontSize: 10,
+          fill: "#6a9bb5",
+        },
+      },
+    ],
+    theme: {
+      view: { viewFill: "transparent" },
+    },
+  };
+
   return (
-    <div className="panel fade-in">
-      <div className="panel-header" style={{ marginBottom: 8 }}>
-        <span className="panel-title">Energy Distribution</span>
-        <span style={{ fontSize: 9, color: "#64748b" }}>Current</span>
-      </div>
-      <div style={{ position: "relative" }}>
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie data={dd} cx="50%" cy="50%" innerRadius={55} outerRadius={80}
-              dataKey="value" labelLine={false} label={DonutLabel} strokeWidth={0}>
-              {dd.map((_, i) => (
-                <Cell key={i} fill={DONUT_COLORS[i]}
-                  style={{ filter: `drop-shadow(0 0 4px ${DONUT_COLORS[i]}66)` }} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          pointerEvents: "none",
-        }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: C.cyan, fontVariantNumeric: "tabular-nums" }}>
-            {fmt(total, 0)}
-          </span>
-          <span style={{ fontSize: 10, color: "#64748b" }}>MW Total</span>
-        </div>
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 4 }}>
-        {dd.map((d, i) => (
-          <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: DONUT_COLORS[i] }} />
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>{d.name}</span>
-          </div>
-        ))}
-      </div>
+    <Card styles={{ body: { padding: 16 } }}>
+      <Flex align="center" justify="space-between" style={{ marginBottom: 10 }}>
+        <Text strong style={{ fontSize: 13, color: "#e8f4f8" }}>Energy Distribution</Text>
+        <Text style={{ fontSize: 10, color: "#4a7a92" }}>Current</Text>
+      </Flex>
+      <Pie {...config} />
+    </Card>
+  );
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+export default function AnalyticsCharts({ latest, history }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+      <HealthRadar data={latest} />
+      <PowerBar history={history} />
+      <EnergyDonut data={latest} />
     </div>
   );
 }

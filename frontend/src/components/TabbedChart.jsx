@@ -1,30 +1,18 @@
 import { useState } from "react";
-import {
-  AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
-} from "recharts";
+import { Card, Segmented, Flex, Typography } from "antd";
+import { Area } from "@ant-design/charts";
 import { C, TABS, THR, fmt } from "../config.js";
 
-const CustomTooltip = ({ active, payload, unit, color }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{
-      background: "rgba(6,8,15,0.95)",
-      border: `1px solid ${color}44`,
-      borderRadius: 8,
-      padding: "5px 10px",
-      boxShadow: `0 4px 16px rgba(0,0,0,0.4)`,
-    }}>
-      <span style={{ color, fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>
-        {Number(payload[0].value).toFixed(3)} {unit}
-      </span>
-    </div>
-  );
-};
+const { Text } = Typography;
 
 export default function TabbedChart({ history }) {
   const [active, setActive] = useState(0);
   const tab = TABS[active];
+
+  const chartData = history.map((point) => ({
+    time: point.t,
+    value: point[tab.key] ?? 0,
+  }));
 
   const warnMap = {
     vibration_mms: THR.vibration.warn,
@@ -36,68 +24,99 @@ export default function TabbedChart({ history }) {
     bearing_temp_c: THR.bearing.crit,
   };
 
+  const annotations = [];
+  if (warnMap[tab.key]) {
+    annotations.push({
+      type: "line",
+      yField: warnMap[tab.key],
+      style: { stroke: C.amber, strokeOpacity: 0.6, lineDash: [5, 3] },
+    });
+  }
+  if (critMap[tab.key]) {
+    annotations.push({
+      type: "line",
+      yField: critMap[tab.key],
+      style: { stroke: C.red, strokeOpacity: 0.6, lineDash: [5, 3] },
+    });
+  }
+
+  const config = {
+    data: chartData,
+    xField: "time",
+    yField: "value",
+    smooth: true,
+    animation: false,
+    height: 240,
+    style: {
+      fill: `linear-gradient(-90deg, ${tab.color}00 0%, ${tab.color}30 100%)`,
+      stroke: tab.color,
+      strokeWidth: 2,
+    },
+    line: {
+      style: {
+        stroke: tab.color,
+        strokeWidth: 2,
+      },
+    },
+    axis: {
+      x: { label: false, line: false, tick: false },
+      y: {
+        domain: tab.domain,
+        label: { style: { fill: "#4a7a92", fontSize: 10 } },
+        grid: { style: { stroke: "#164260", strokeDasharray: "3 3" } },
+        line: false,
+        tick: false,
+      },
+    },
+    tooltip: {
+      channel: "y",
+      valueFormatter: (v) => `${Number(v).toFixed(3)} ${tab.unit}`,
+    },
+    theme: {
+      view: { viewFill: "transparent" },
+    },
+    annotations,
+  };
+
   return (
-    <div className="panel fade-in" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
+    <Card
+      className="chart-panel"
+      style={{ borderColor: `${tab.color}25` }}
+      styles={{ body: { padding: "16px 16px 8px" } }}
+    >
       {/* Tab bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, paddingBottom: 14, borderBottom: "1px solid var(--border)" }}>
-        {TABS.map((t, i) => (
-          <button key={t.key} onClick={() => setActive(i)}
-            style={{
-              position: "relative",
-              padding: "6px 14px",
-              borderRadius: 8,
-              fontSize: 10,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              cursor: "pointer",
-              border: active === i ? `1px solid ${t.color}33` : "1px solid transparent",
-              background: active === i ? `${t.color}15` : "transparent",
-              color: active === i ? t.color : "#64748b",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      <Flex align="center" justify="space-between" style={{ marginBottom: 14 }}>
+        <Segmented
+          options={TABS.map((t, i) => ({
+            value: i,
+            label: (
+              <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {t.label}
+              </span>
+            ),
+          }))}
+          value={active}
+          onChange={setActive}
+          size="small"
+        />
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: tab.color, animation: "blink 2s ease-in-out infinite" }} />
-          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: tab.color, fontVariantNumeric: "tabular-nums" }}>
+        <Flex align="center" gap={8}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: tab.color, display: "inline-block",
+            animation: "pulse-dot 2s ease-in-out infinite",
+          }} />
+          <Text style={{
+            fontFamily: "monospace", fontSize: 13, fontWeight: 700,
+            color: tab.color, fontVariantNumeric: "tabular-nums",
+          }}>
             {history.length ? fmt(history[history.length - 1]?.[tab.key], 2) : "—"} {tab.unit}
-          </span>
-        </div>
-      </div>
+          </Text>
+        </Flex>
+      </Flex>
 
       {/* Chart */}
-      <div style={{ flex: 1, paddingTop: 12 }}>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={history} margin={{ top: 8, right: 16, left: -18, bottom: 0 }}>
-            <defs>
-              <linearGradient id={`grad-${tab.key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor={tab.color} stopOpacity={0.2} />
-                <stop offset="95%" stopColor={tab.color} stopOpacity={0.01} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-            <XAxis dataKey="t" hide />
-            <YAxis domain={tab.domain} tick={{ fill: "#475569", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip unit={tab.unit} color={tab.color} />} />
-            {warnMap[tab.key] && (
-              <ReferenceLine y={warnMap[tab.key]} stroke={C.amber} strokeDasharray="5 3"
-                label={{ value: "WARN", fill: C.amber, fontSize: 9, position: "insideTopRight" }} />
-            )}
-            {critMap[tab.key] && (
-              <ReferenceLine y={critMap[tab.key]} stroke={C.red} strokeDasharray="5 3"
-                label={{ value: "CRIT", fill: C.red, fontSize: 9, position: "insideTopRight" }} />
-            )}
-            <Area type="monotoneX" dataKey={tab.key} stroke={tab.color} strokeWidth={2}
-              fill={`url(#grad-${tab.key})`} dot={false} isAnimationActive={false}
-              style={{ filter: `drop-shadow(0 0 4px ${tab.color}66)` }} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+      <Area {...config} />
+    </Card>
   );
 }

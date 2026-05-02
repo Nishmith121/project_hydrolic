@@ -1,20 +1,23 @@
 """
 ================================================================================
-  Virtual Hydraulic Turbine — Phase 3: REST API
-  FastAPI Server for InfluxDB Data Serving
+  Virtual Hydraulic Turbine — Phase 3: REST API + SCADA Control
+  FastAPI Server for InfluxDB Data Serving & Two-Way Modbus Control
 ================================================================================
 
   This script connects to the InfluxDB bucket holding our Modbus telemetry
-  and exposes a clean JSON endpoint for the frontend.
+  and exposes a clean JSON endpoint for the frontend.  It also provides a
+  two-way SCADA control endpoint that writes Wicket-Gate setpoints back to
+  the Modbus server.
 
   Prerequisites:
-    pip install fastapi uvicorn influxdb-client
+    pip install fastapi uvicorn influxdb-client pymodbus
 
   Usage:
     1. Fill in your InfluxDB credentials in the CONFIG block below.
     2. Run this server using uvicorn:
        uvicorn fastapi_api:app --reload --port 8000
-    3. The API will be available at: http://localhost:8000/api/live-data
+    3. GET  http://localhost:8000/api/live-data    — live telemetry + ML
+    4. POST http://localhost:8000/api/control-gate  — write gate setpoint
 
 ================================================================================
 """
@@ -25,7 +28,9 @@ import numpy as np
 import joblib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from influxdb_client import InfluxDBClient
+from pymodbus.client import AsyncModbusTcpClient
 
 # ---------------------------------------------------------------------------
 # CONFIG — drop your credentials here
@@ -50,7 +55,7 @@ app.add_middleware(
         "http://localhost:5173",
     ],
     allow_credentials=True,
-    allow_methods=["GET"],  # We only need GET for reading live data
+    allow_methods=["GET", "POST"],  # GET for live data, POST for SCADA control
     allow_headers=["*"],
 )
 
@@ -85,11 +90,54 @@ ML_FEATURES = [
     'stator_winding_temp_c', 'governor_oil_pressure_bar'
 ]
 
+# ---------------------------------------------------------------------------
+# SCADA CONTROL — Pydantic model for gate setpoint commands
+# ---------------------------------------------------------------------------
+class GateControl(BaseModel):
+    """Payload for the Wicket Gate control endpoint."""
+    gate_opening_percentage: float = Field(
+        ...,
+        ge=0.0,
+        le=100.0,
+        description="Desired wicket-gate opening as a percentage (0.0 – 100.0)."
+    )
+
+# ---------------------------------------------------------------------------
+# MODBUS CONFIG
+# ---------------------------------------------------------------------------
+MODBUS_HOST = "localhost"
+MODBUS_PORT = 5020
+WICKET_GATE_REGISTER = 6   # Holding Register address for the Wicket Gate
+
 @app.on_event("shutdown")
 def shutdown_event():
     """Ensure we cleanly close the InfluxDB client connection on shutdown."""
     influx_client.close()
     logger.info("InfluxDB connection closed.")
+
+def diagnose_fault(telemetry_data: dict):
+    """
+    Evaluates anomalous telemetry and prescribes diagnostic action.
+    """
+    vib = float(telemetry_data.get('vibration_mms', 0.0))
+    dt_press = float(telemetry_data.get('draft_tube_pressure_bar', 0.0))
+    bearing_temp = float(telemetry_data.get('bearing_temp_c', 0.0))
+    rpm = float(telemetry_data.get('rotational_speed_rpm', 0.0))
+
+    # Cavitation check
+    if vib > 4.5 and (dt_press > 1.5 or dt_press < 0.8):
+        return "Cavitation Detected", "CRITICAL: Reduce Wicket Gate opening immediately to stabilize pressure."
+    
+    # Bearing overheating check
+    if bearing_temp > 75.0:
+        return "Bearing Overheating / Degradation", "WARNING: Dispatch maintenance to inspect bearing lubrication and cooling oil flow."
+    
+    # Speed governor failure check
+    if rpm > 310 or rpm < 290:
+        return "Speed Governor Failure", "CRITICAL: Isolate turbine from grid. Check governor oil pressure."
+    
+    # Fallback
+    return "Unknown Complex Anomaly", "WARNING: System operating outside healthy baseline. Monitor closely."
 
 @app.get("/api/live-data")
 async def get_live_data():
@@ -148,10 +196,18 @@ async def get_live_data():
                 # 1 is normal, -1 is anomaly in IsolationForest
                 is_anomaly = bool(prediction == -1)
                 
+                if is_anomaly:
+                    diagnosis, action_required = diagnose_fault(cleaned_record)
+                else:
+                    diagnosis = "System Healthy"
+                    action_required = "None"
+
                 cleaned_record["ml_insights"] = {
                     "is_anomaly": is_anomaly,
                     "anomaly_score": float(score),
-                    "status_message": "CRITICAL: Anomaly Detected!" if is_anomaly else "System Healthy"
+                    "status_message": "CRITICAL: Anomaly Detected!" if is_anomaly else "System Healthy",
+                    "diagnosis": diagnosis,
+                    "action_required": action_required
                 }
             except Exception as ml_err:
                 logger.error(f"Error during ML prediction: {ml_err}")
@@ -165,6 +221,50 @@ async def get_live_data():
         raise HTTPException(
             status_code=500,
             detail="Error communicating with the database. Ensure InfluxDB is running and credentials are correct."
+        )
+
+# ---------------------------------------------------------------------------
+# POST  /api/control-gate — Two-Way SCADA: Write Wicket-Gate Setpoint
+# ---------------------------------------------------------------------------
+@app.post("/api/control-gate")
+async def control_gate(payload: GateControl):
+    """
+    Write a new Wicket Gate opening percentage to the Modbus server.
+
+    The Modbus server stores register values as integers scaled ×10,
+    so we multiply the incoming float by 10 before writing.
+    """
+    scaled_value = int(payload.gate_opening_percentage * 10)
+
+    try:
+        client = AsyncModbusTcpClient(MODBUS_HOST, port=MODBUS_PORT)
+        await client.connect()
+
+        if not client.connected:
+            raise ConnectionError("Unable to establish connection to Modbus server.")
+
+        await client.write_register(address=WICKET_GATE_REGISTER, value=scaled_value)
+        logger.info(
+            f"SCADA WRITE ▸ Wicket gate set to {payload.gate_opening_percentage}% "
+            f"(register {WICKET_GATE_REGISTER} = {scaled_value})"
+        )
+
+        client.close()
+
+        return {
+            "status": "success",
+            "message": f"Wicket gate set to {payload.gate_opening_percentage}%"
+        }
+
+    except Exception as e:
+        logger.error(f"Modbus write failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Failed to communicate with the Modbus server. "
+                "Ensure the SCADA simulator is running on "
+                f"{MODBUS_HOST}:{MODBUS_PORT}."
+            )
         )
 
 if __name__ == "__main__":
