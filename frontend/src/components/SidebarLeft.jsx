@@ -80,7 +80,7 @@ export default function SidebarLeft() {
         color: "#4a7a92",
         letterSpacing: 0.5,
       }}>
-        Virtual Hydraulic Plant v2.0
+        HYDRO v2.0
       </div>
     </div>
   );

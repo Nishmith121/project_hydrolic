@@ -10,7 +10,7 @@ function CircleKpi({ label, value, max = 100, unit, color }) {
     <div style={{
       display: "flex", alignItems: "center", gap: 14,
       padding: "12px 14px", borderRadius: 10,
-      background: "rgba(7, 26, 43, 0.6)",
+      background: "#000000",
       border: "1px solid #164260",
     }}>
       <Progress
@@ -36,7 +36,7 @@ export default function KPIPanel({ latest, score }) {
 
   return (
     <Card
-      style={{ borderColor: `${C.purple}30`, height: "100%" }}
+      style={{ borderColor: `${C.purple}30`, height: "100%", background: "#000000" }}
       styles={{ body: { padding: 20 } }}
     >
       {/* Header */}
@@ -74,7 +74,7 @@ export default function KPIPanel({ latest, score }) {
       {/* Frequency Bar */}
       <div style={{
         padding: "12px 14px", borderRadius: 10,
-        background: "rgba(7, 26, 43, 0.6)",
+        background: "#000000",
         border: "1px solid #164260",
       }}>
         <Flex justify="space-between" style={{ marginBottom: 6 }}>

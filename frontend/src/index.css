@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ═══════════════════════════════════════════════════════════════════════════
    HYDRAULIC TURBINE SCADA — Global Overrides (Ant Design Dark Theme)
    Blue-Green Oceanic Palette
@@ -88,7 +90,7 @@ body {
 /* ═══ Card Enhancements ══════════════════════════════════════════════════ */
 .ant-card {
   border-color: var(--border) !important;
-  background: rgba(11, 34, 54, 0.7) !important;
+  background: #000000 !important;
   backdrop-filter: blur(8px);
   transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
 }

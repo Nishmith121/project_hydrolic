@@ -1,119 +1,81 @@
-import { Card, Button, Tag, Descriptions, Flex, Typography } from "antd";
-import { CheckCircleOutlined, WarningOutlined, AlertOutlined } from "@ant-design/icons";
-import { C } from "../config.js";
+import { CheckCircleOutlined, WarningOutlined, AlertOutlined, ToolOutlined } from "@ant-design/icons";
 
-const { Text } = Typography;
+export default function DiagnosticPanel({ ml_insights }) {
+  const isAnomaly = ml_insights?.is_anomaly;
 
-export default function DiagnosticPanel({ diagnosis, actionRequired }) {
-  const isHealthy = actionRequired === "None" || !actionRequired;
-
-  if (isHealthy) {
+  if (!isAnomaly) {
     return (
-      <Card
-        style={{
-          borderColor: `${C.green}40`,
-          background: "linear-gradient(135deg, rgba(34,197,94,0.05), rgba(11,34,54,0.7))",
-          height: "100%",
-        }}
-        styles={{ body: { padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, height: "100%" } }}
-      >
-        <CheckCircleOutlined style={{ fontSize: 28, color: C.green }} />
+      <div className="h-full rounded-xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-[#0b2236]/80 p-5 flex items-center gap-4 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+        <CheckCircleOutlined className="text-3xl text-green-500" />
         <div>
-          <Text strong style={{
-            color: C.green, fontSize: 14, textTransform: "uppercase", letterSpacing: 1,
-            display: "block",
-          }}>
+          <h3 className="text-green-500 font-bold text-sm tracking-wider uppercase m-0 leading-tight">
             System Optimal
-          </Text>
-          <Text style={{ color: "#6a9bb5", fontSize: 13 }}>
-            No prescriptive actions required at this time.
-          </Text>
+          </h3>
+          <p className="text-[#6a9bb5] text-sm m-0 mt-1">
+            No maintenance actions required.
+          </p>
         </div>
-      </Card>
+      </div>
     );
   }
 
-  const isCritical = actionRequired.toUpperCase().includes("CRITICAL");
-  const severityColor = isCritical ? C.red : C.amber;
-  const severityLabel = isCritical ? "CRITICAL ACTION REQUIRED" : "MAINTENANCE WARNING";
-  const SeverityIcon = isCritical ? AlertOutlined : WarningOutlined;
+  const isCritical = ml_insights.action_required?.toUpperCase().includes("CRITICAL");
+  const borderColor = isCritical ? "border-red-500/50" : "border-amber-500/50";
+  const glowColor = isCritical ? "shadow-[0_0_20px_rgba(239,68,68,0.2)]" : "shadow-[0_0_20px_rgba(245,158,11,0.2)]";
+  const bgGradient = isCritical ? "from-red-500/10" : "from-amber-500/10";
+  const iconColor = isCritical ? "text-red-500" : "text-amber-500";
+  const Icon = isCritical ? AlertOutlined : WarningOutlined;
 
   return (
-    <Card
-      className="glow-card"
-      style={{
-        "--glow-color": severityColor,
-        borderColor: `${severityColor}50`,
-        background: `linear-gradient(135deg, rgba(11,34,54,0.9), ${isCritical ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)"})`,
-        position: "relative",
-        height: "100%",
-      }}
-      styles={{ body: { padding: "24px" } }}
-    >
-      {/* Top severity banner */}
-      <div className="severity-banner" style={{ background: severityColor }} />
+    <div className={`h-full relative rounded-xl border ${borderColor} bg-gradient-to-br ${bgGradient} to-[#071a2b] p-6 flex flex-col ${glowColor} overflow-hidden`}>
+      {/* Top Banner Indicator */}
+      <div className={`absolute top-0 left-0 right-0 h-1 ${isCritical ? "bg-red-500" : "bg-amber-500"}`} />
 
       {/* Header */}
-      <Flex align="center" gap={14} style={{ marginBottom: 20 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 10,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: `${severityColor}18`, border: `1px solid ${severityColor}40`,
-          color: severityColor, fontSize: 20,
-        }}>
-          <SeverityIcon />
+      <div className="flex items-center gap-4 mb-5">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center border ${borderColor} bg-[#071a2b]/80 ${iconColor} text-2xl`}>
+          <Icon />
         </div>
         <div>
-          <Tag color={isCritical ? "error" : "warning"} style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>
-            {severityLabel}
-          </Tag>
-          <Text strong style={{ display: "block", color: "#e8f4f8", fontSize: 18, marginTop: 4 }}>
-            WORK ORDER TICKET
-          </Text>
+          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase mb-1 ${isCritical ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"}`}>
+            {isCritical ? "CRITICAL ACTION REQUIRED" : "MAINTENANCE WARNING"}
+          </span>
+          <h2 className="text-[#e8f4f8] text-lg font-bold m-0 tracking-wide uppercase">
+            Work Order Ticket
+          </h2>
         </div>
-      </Flex>
+      </div>
 
-      {/* Diagnosis Details */}
-      <div style={{
-        background: "rgba(7, 26, 43, 0.6)",
-        border: "1px solid #164260",
-        borderRadius: 10, padding: 18,
-        marginBottom: 18,
-      }}>
-        <Flex vertical gap={14}>
-          <div>
-            <Text style={{ fontSize: 10, color: "#6a9bb5", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 4 }}>
-              Fault Diagnosis
-            </Text>
-            <Text style={{ fontSize: 14, color: "#e8f4f8", fontWeight: 500 }}>
-              {diagnosis || "Unknown Fault"}
-            </Text>
+      {/* Details Container */}
+      <div className="flex-1 bg-[#071a2b]/60 border border-[#164260] rounded-lg p-5 flex flex-col gap-4 mb-5">
+        <div>
+          <span className="block text-[10px] text-[#6a9bb5] uppercase tracking-widest mb-1 font-semibold">
+            Fault Diagnosis
+          </span>
+          <div className="text-[#e8f4f8] text-base font-medium">
+            {ml_insights.diagnosis || "Unknown Fault Detected"}
           </div>
-          <div>
-            <Text style={{ fontSize: 10, color: "#6a9bb5", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 4 }}>
-              Prescribed Action
-            </Text>
-            <Text strong style={{ fontSize: 14, color: severityColor, lineHeight: 1.5 }}>
-              {actionRequired}
-            </Text>
+        </div>
+
+        <div>
+          <span className="block text-[10px] text-[#6a9bb5] uppercase tracking-widest mb-1 font-semibold">
+            Prescribed Action
+          </span>
+          <div className={`text-base font-bold flex items-start gap-2 ${iconColor}`}>
+            <ToolOutlined className="mt-1" />
+            <span>{ml_insights.action_required || "Investigate system components immediately."}</span>
           </div>
-        </Flex>
+        </div>
       </div>
 
       {/* Action Button */}
-      <Button
-        type="primary"
-        block
-        size="large"
-        danger={isCritical}
-        style={{
-          fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
-          background: isCritical ? undefined : C.amber,
-          borderColor: isCritical ? undefined : C.amber,
-        }}
-      >
+      <button className={`w-full py-3 rounded-lg font-bold text-sm uppercase tracking-widest transition-all duration-200 cursor-pointer ${
+        isCritical 
+          ? "bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
+          : "bg-amber-500 hover:bg-amber-600 text-[#071a2b] shadow-[0_0_15px_rgba(245,158,11,0.4)]"
+      }`}>
         Acknowledge & Dispatch
-      </Button>
-    </Card>
+      </button>
+    </div>
   );
 }

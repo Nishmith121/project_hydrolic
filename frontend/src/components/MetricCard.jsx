@@ -14,6 +14,7 @@ export default function MetricCard({ label, value, unit, icon, status = "normal"
       style={{
         "--glow-color": color,
         borderColor: `${color}40`,
+        background: "#000000",
       }}
       styles={{ body: { padding: compact ? "12px 14px" : "16px 18px" } }}
     >
