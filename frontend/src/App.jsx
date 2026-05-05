@@ -7,6 +7,7 @@ import {
   BarChartOutlined,
   BulbOutlined,
   UserOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
 import { C, THR, fmt, getStatus, conditionScore, buildAlerts } from "./config.js";
 import { palette } from "./theme.js";
@@ -21,6 +22,8 @@ import DiagnosticPanel  from "./components/DiagnosticPanel.jsx";
 import AiAlertsPage     from "./components/AiAlertsPage.jsx";
 import AiRecommendationsPage from "./components/AiRecommendationsPage.jsx";
 import AnalyticsCharts  from "./components/Charts.jsx";
+import ReportGenerator  from "./components/ReportGenerator.jsx";
+import TurbineModel3D   from "./components/TurbineModel3D.jsx";
 import StatusStrip      from "./components/StatusStrip.jsx";
 
 const { Header, Content, Sider } = Layout;
@@ -32,6 +35,7 @@ const NAV_ITEMS = [
   { key: "ai-alerts",  label: "AI & Alerts",        icon: <AlertOutlined /> },
   { key: "ai-reco",    label: "AI Recommendations", icon: <BulbOutlined /> },
   { key: "analytics",  label: "Analytics",          icon: <BarChartOutlined /> },
+  { key: "3d-model",   label: "3D Model",           icon: <AppstoreOutlined /> },
 ];
 
 const API_URL  = "http://localhost:8000/api/live-data";
@@ -109,6 +113,7 @@ export default function App() {
   const [status,  setStatus]  = useState("idle");
   const [lastTs,  setLastTs]  = useState(null);
   const [activePage, setActivePage] = useState("dashboard");
+  const [gateConnected, setGateConnected] = useState(false);
   const tick = useRef(0);
 
   useEffect(() => {
@@ -311,7 +316,7 @@ export default function App() {
           {/* ─── SCADA CONTROL ────────────────────────────────────────── */}
           {activePage === "scada" && (
             <div className="fade-in">
-              <GateControlPanel latest={latest} />
+              <GateControlPanel latest={latest} gateConnected={gateConnected} setGateConnected={setGateConnected} />
               <div style={{ marginTop: 24 }}>
                 <SectionDivider title="System Response Trends" color={C.secondary} />
                 <TabbedChart history={history} />
@@ -342,6 +347,16 @@ export default function App() {
                 <SectionDivider title="Deep Analytics" color={C.purple} />
                 <AnalyticsCharts latest={latest} history={history} />
               </div>
+              <div style={{ marginTop: 32 }}>
+                <SectionDivider title="Export & Reporting" color={C.cyan} />
+                <ReportGenerator />
+              </div>
+            </div>
+          )}
+          {/* ─── 3D MODEL ──────────────────────────────────────────── */}
+          {activePage === "3d-model" && (
+            <div className="fade-in">
+              <TurbineModel3D latest={latest} alerts={alerts} gateConnected={gateConnected} />
             </div>
           )}
 

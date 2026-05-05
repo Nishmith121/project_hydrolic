@@ -18,12 +18,11 @@ function arcPath(cx, cy, r, startDeg, endDeg) {
   return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
 }
 
-export default function GateControlPanel({ latest }) {
+export default function GateControlPanel({ latest, gateConnected, setGateConnected }) {
   const [sliderValue, setSliderValue] = useState(50);
   const [statusMessage, setStatusMessage] = useState(null);
   const [statusType, setStatusType] = useState("idle");
   const [isSending, setIsSending] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const timerRef = useRef(null);
 
   const flash = useCallback((msg, type) => {
@@ -87,8 +86,8 @@ export default function GateControlPanel({ latest }) {
           <Text strong style={{ fontSize: 14, color: "#e8f4f8" }}>Wicket Gate Supervisory Control</Text>
         </Flex>
         <Flex align="center" gap={8}>
-          <Tag color={isConnected ? "success" : "default"} style={{ margin: 0 }}>
-            {isConnected ? "CONNECTED" : "OFFLINE"}
+          <Tag color={gateConnected ? "success" : "default"} style={{ margin: 0 }}>
+            {gateConnected ? "CONNECTED" : "OFFLINE"}
           </Tag>
           <Tag style={{ margin: 0, background: "rgba(7,26,43,0.6)", borderColor: "#164260", color: "#6a9bb5", fontVariantNumeric: "tabular-nums" }}>
             REGISTER 6
@@ -97,42 +96,42 @@ export default function GateControlPanel({ latest }) {
       </Flex>
 
       {/* Connection & Alerts */}
-      {!isConnected && (
+      {!gateConnected && (
         <div style={{ marginBottom: 24 }}>
           {isLowFlow ? (
             <Alert
               message={<span style={{ fontWeight: 700, letterSpacing: 1 }}>LOW FLOW DETECTED</span>}
-              description={`The current flow rate is ${flowRate.toFixed(1)} m³/s. Please connect to the SCADA system and increase the Wicket Gate opening to allow more flow.`}
+              description={`The current flow rate is ${flowRate.toFixed(1)} m³/s. Please connect gate and increase the Wicket Gate opening to allow more flow.`}
               type="warning"
               showIcon
               action={
-                <Button type="primary" size="middle" icon={<LinkOutlined />} onClick={() => setIsConnected(true)}>
-                  Connect SCADA
+                <Button type="primary" size="middle" icon={<LinkOutlined />} onClick={() => setGateConnected(true)}>
+                  Connect Gate
                 </Button>
               }
               style={{ background: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.3)" }}
             />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: "rgba(7,26,43,0.6)", border: "1px solid #164260", borderRadius: 8 }}>
-              <Text style={{ color: "#a3c4d4" }}>SCADA link is offline. Connect to enable wicket gate supervisory control.</Text>
-              <Button type="primary" icon={<LinkOutlined />} onClick={() => setIsConnected(true)}>
-                Connect SCADA
+              <Text style={{ color: "#a3c4d4" }}>SCADA link is offline. Connect gate to enable wicket gate supervisory control.</Text>
+              <Button type="primary" icon={<LinkOutlined />} onClick={() => setGateConnected(true)}>
+                Connect Gate
               </Button>
             </div>
           )}
         </div>
       )}
 
-      {isConnected && (
+      {gateConnected && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-          <Button danger size="small" icon={<DisconnectOutlined />} onClick={() => setIsConnected(false)} style={{ background: "transparent" }}>
-            Disconnect SCADA
+          <Button danger size="small" icon={<DisconnectOutlined />} onClick={() => setGateConnected(false)} style={{ background: "transparent" }}>
+            Disconnect Gate
           </Button>
         </div>
       )}
 
       {/* Body: Gauge + Controls */}
-      <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 28, alignItems: "center", opacity: isConnected ? 1 : 0.4, pointerEvents: isConnected ? 'auto' : 'none', transition: 'opacity 0.3s' }}>
+      <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 28, alignItems: "center", opacity: gateConnected ? 1 : 0.4, pointerEvents: gateConnected ? 'auto' : 'none', transition: 'opacity 0.3s' }}>
 
         {/* Gauge */}
         <Flex vertical align="center">
