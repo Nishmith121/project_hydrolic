@@ -11,9 +11,13 @@ import math
 import random
 import time
 
+try:
+    from pymodbus.datastore import ModbusDeviceContext as ModbusSlaveContext
+except ImportError:
+    from pymodbus.datastore import ModbusSlaveContext
+
 from pymodbus.datastore import (
-    ModbusSparseDataBlock,
-    ModbusSlaveContext,
+    ModbusSequentialDataBlock,
     ModbusServerContext,
 )
 from pymodbus.server import StartAsyncTcpServer
@@ -31,7 +35,7 @@ log = logging.getLogger("VirtualTurbine")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-SERVER_HOST = "localhost"
+SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 5020
 UPDATE_INTERVAL_SECONDS = 1.0
 NUM_REGISTERS = 25
@@ -39,8 +43,11 @@ NUM_REGISTERS = 25
 # ---------------------------------------------------------------------------
 # Data Block Initialization
 # ---------------------------------------------------------------------------
-store = ModbusSlaveContext(hr=ModbusSparseDataBlock({i: 0 for i in range(1, NUM_REGISTERS + 1)}))
-server_context = ModbusServerContext(slaves=store, single=True)
+store = ModbusSlaveContext(hr=ModbusSequentialDataBlock(0, [0] * (NUM_REGISTERS + 2)))
+try:
+    server_context = ModbusServerContext(slaves=store, single=True)
+except TypeError:
+    server_context = ModbusServerContext(devices=store, single=True)
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +183,10 @@ async def simulation_loop() -> None:
         regs = compute_register_values()
         # pymodbus ModbusSlaveContext adds +1 to the address internally (zero_mode=False).
         # setValues(3, 0, regs) sets block keys 1-25.
-        store.setValues(3, 0, regs)
+        try:
+            await server_context.async_setValues(0, 3, 0, regs)
+        except AttributeError:
+            store.setValues(3, 0, regs)
         await asyncio.sleep(UPDATE_INTERVAL_SECONDS)
 
 # ---------------------------------------------------------------------------

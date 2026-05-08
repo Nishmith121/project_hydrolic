@@ -35,7 +35,7 @@ from pymodbus.client import AsyncModbusTcpClient
 # ---------------------------------------------------------------------------
 # CONFIG — drop your credentials here
 # ---------------------------------------------------------------------------
-INFLUX_URL    = "http://localhost:8086"
+INFLUX_URL    = "http://influxdb:8086"
 INFLUX_TOKEN  = "stGlbfflFYJOTzrAq6oQXRGQ6H8ez9ROn3mT8Tt_y8i4GBBwYUFT1sT3dlo5T7uxboTRjzkMM_aLyU6bczf0xg=="
 INFLUX_ORG    = "ruas"
 INFLUX_BUCKET = "ruas"
@@ -105,7 +105,7 @@ class GateControl(BaseModel):
 # ---------------------------------------------------------------------------
 # MODBUS CONFIG
 # ---------------------------------------------------------------------------
-MODBUS_HOST = "localhost"
+MODBUS_HOST = "modbus-server"
 MODBUS_PORT = 5020
 WICKET_GATE_REGISTER = 6   # Holding Register address for the Wicket Gate
 

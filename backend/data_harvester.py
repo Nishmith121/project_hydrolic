@@ -50,13 +50,13 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 # ---------------------------------------------------------------------------
 # CONFIG — drop your credentials here
 # ---------------------------------------------------------------------------
-MODBUS_HOST = "localhost"
+MODBUS_HOST = "modbus-server"
 MODBUS_PORT = 5020
 MODBUS_DEVICE_ID = 0            # Modbus unit/device ID (matches server single=True default)
 MODBUS_REGISTER_START = 0       # pymodbus 3.13 uses 1-based protocol addressing
 MODBUS_REGISTER_COUNT = 15      # we need registers 0–14 (15 total)
 
-INFLUX_URL    = "http://localhost:8086"          # e.g. "http://localhost:8086"
+INFLUX_URL    = "http://influxdb:8086"          # e.g. "http://localhost:8086"
 INFLUX_TOKEN  = "stGlbfflFYJOTzrAq6oQXRGQ6H8ez9ROn3mT8Tt_y8i4GBBwYUFT1sT3dlo5T7uxboTRjzkMM_aLyU6bczf0xg=="   # InfluxDB v2 API token
 INFLUX_ORG    = "ruas"                  # your InfluxDB organisation
 INFLUX_BUCKET = "ruas"                   # destination bucket
@@ -214,11 +214,18 @@ def run_harvester() -> None:
             try:
                 registers = []
                 for reg_addr in range(MODBUS_REGISTER_START, MODBUS_REGISTER_START + MODBUS_REGISTER_COUNT):
-                    response = modbus_client.read_holding_registers(
-                        address=reg_addr,
-                        count=1,
-                        slave=MODBUS_DEVICE_ID,
-                    )
+                    try:
+                        response = modbus_client.read_holding_registers(
+                            address=reg_addr,
+                            count=1,
+                            device_id=MODBUS_DEVICE_ID,
+                        )
+                    except TypeError:
+                        response = modbus_client.read_holding_registers(
+                            address=reg_addr,
+                            count=1,
+                            slave=MODBUS_DEVICE_ID,
+                        )
                     if response.isError():
                         log.error("Modbus Error reading address %d: %s", reg_addr, response)
                         registers.append(0)
