@@ -1,8 +1,14 @@
 import React, { useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 
-export default function ReportGenerator() {
+export default function ReportGenerator({ latest, history, activeUnit = "turbine_01" }) {
   const reportRef = useRef(null);
+  
+  const power = latest?.active_power_mw || 120;
+  const isAnomaly = latest?.ml_insights?.is_anomaly;
+  const totalEnergy = (power * 24 * 30 / 1000).toFixed(2); // Mock monthly GWh
+  const efficiency = isAnomaly ? "88.4%" : "94.2%";
+  const revenueRecovered = isAnomaly ? "$0 (Active Fault)" : "$42,500";
 
   const downloadPDF = () => {
     if (!reportRef.current) return;
@@ -64,7 +70,7 @@ export default function ReportGenerator() {
         <div style={{ marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid #1c2a38' }} data-html2canvas-ignore="false">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <h2 style={{ color: '#ffffff', margin: 0, fontSize: 26, fontWeight: 'bold', letterSpacing: '-0.5px' }}>Hydro Turbine 01</h2>
+              <h2 style={{ color: '#ffffff', margin: 0, fontSize: 26, fontWeight: 'bold', letterSpacing: '-0.5px', textTransform: 'uppercase' }}>Hydro {activeUnit.replace('_', ' ')}</h2>
               <h3 style={{ color: '#00d4ff', margin: '4px 0 0 0', fontSize: 18 }}>Performance & Efficiency Report</h3>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -77,7 +83,7 @@ export default function ReportGenerator() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 40 }}>
             <div style={{ background: '#0b121a', padding: 20, borderRadius: 8, border: '1px solid #1c2a38' }}>
                 <div style={{ color: '#6a9bb5', fontSize: 12, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.5px' }}>Weekly Efficiency</div>
-                <div style={{ color: '#10b981', fontSize: 32, fontWeight: 'bold' }}>94.2%</div>
+                <div style={{ color: '#10b981', fontSize: 32, fontWeight: 'bold' }}>{efficiency}</div>
                 <div style={{ color: '#10b981', fontSize: 13, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
                   +1.2% vs last week
@@ -100,7 +106,7 @@ export default function ReportGenerator() {
             </div>
             <div style={{ background: '#0b121a', padding: 20, borderRadius: 8, border: '1px solid #1c2a38' }}>
                 <div style={{ color: '#6a9bb5', fontSize: 12, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.5px' }}>Total Energy (YTD)</div>
-                <div style={{ color: '#00d4ff', fontSize: 32, fontWeight: 'bold' }}>1.42 GWh</div>
+                <div style={{ color: '#00d4ff', fontSize: 32, fontWeight: 'bold' }}>{totalEnergy} GWh</div>
                 <div style={{ color: '#a3c4d4', fontSize: 13, marginTop: 6 }}>
                   14,200 hours online
                 </div>
@@ -157,7 +163,7 @@ export default function ReportGenerator() {
                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                  </div>
                  <div>
-                   <div style={{ color: '#e8f4f8', fontSize: 15, fontWeight: 'bold', marginBottom: 4 }}>Revenue Recovered: $42,500</div>
+                   <div style={{ color: '#e8f4f8', fontSize: 15, fontWeight: 'bold', marginBottom: 4 }}>Revenue Recovered: {revenueRecovered}</div>
                    <div style={{ color: '#a3c4d4', fontSize: 14, lineHeight: 1.5 }}>Saved via AI predictive alerts preventing 3 major turbine unplanned outages.</div>
                  </div>
                </li>

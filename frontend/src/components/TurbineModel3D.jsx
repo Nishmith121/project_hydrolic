@@ -287,7 +287,7 @@ function TurbineScene({ latest, alertMap, gateOpen, waterLevel, gateConnected })
 // ── MAIN EXPORT ──
 export default function TurbineModel3D({ latest, alerts = [], gateConnected = false }) {
   const gateOpen = latest?.wicket_gate_opening_pct ?? 50;
-  const waterLevel = Math.min(100, Math.max(5, (latest?.cooling_water_flow_ls ?? 35) * 2));
+  const waterLevel = Math.min(100, Math.max(5, latest?.water_flow_rate_m3s ?? 35));
 
   const alertMap = useMemo(() => {
     const m = { vibration: false, bearing: false, stator: false, gate: false, casing: false, draft: false, frequency: false };

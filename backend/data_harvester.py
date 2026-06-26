@@ -50,20 +50,22 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 # ---------------------------------------------------------------------------
 # CONFIG — drop your credentials here
 # ---------------------------------------------------------------------------
-MODBUS_HOST = "modbus-server"
+MODBUS_HOST = "localhost"
 MODBUS_PORT = 5020
-MODBUS_DEVICE_ID = 0            # Modbus unit/device ID (matches server single=True default)
+MODBUS_UNITS = {
+    1: "turbine_01",
+    2: "turbine_02",
+}
 MODBUS_REGISTER_START = 0       # pymodbus 3.13 uses 1-based protocol addressing
 MODBUS_REGISTER_COUNT = 15      # we need registers 0–14 (15 total)
 
-INFLUX_URL    = "http://influxdb:8086"          # e.g. "http://localhost:8086"
+INFLUX_URL    = "http://localhost:8086"          # e.g. "http://localhost:8086"
 INFLUX_TOKEN  = "stGlbfflFYJOTzrAq6oQXRGQ6H8ez9ROn3mT8Tt_y8i4GBBwYUFT1sT3dlo5T7uxboTRjzkMM_aLyU6bczf0xg=="   # InfluxDB v2 API token
 INFLUX_ORG    = "ruas"                  # your InfluxDB organisation
 INFLUX_BUCKET = "ruas"                   # destination bucket
 
 POLL_INTERVAL_SECONDS = 1.0
 MEASUREMENT_NAME      = "turbine_telemetry"
-TURBINE_TAG           = "turbine_01"
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
@@ -131,18 +133,18 @@ def descale(raw_registers: list[int]) -> dict[str, float]:
 # ---------------------------------------------------------------------------
 # InfluxDB Point Builder
 # ---------------------------------------------------------------------------
-def build_influx_point(telemetry: dict[str, float]) -> Point:
+def build_influx_point(telemetry: dict[str, float], unit_tag: str) -> Point:
     """
     Package all 15 descaled fields into a single InfluxDB Point.
 
     Measurement : turbine_telemetry
-    Tag         : unit = turbine_01
+    Tag         : unit = <unit_tag>
     Fields      : all 15 descaled telemetry values
     Timestamp   : current UTC time (nanosecond precision)
     """
     point = (
         Point(MEASUREMENT_NAME)
-        .tag("unit", TURBINE_TAG)
+        .tag("unit", unit_tag)
         .time(time.time_ns(), WritePrecision.NS)
     )
     for field_name, value in telemetry.items():
@@ -210,65 +212,56 @@ def run_harvester() -> None:
                     continue
                 log.info("Modbus connection established.")
 
-            # ── Step 2: Read Holding Registers ────────────────────────────
-            try:
-                registers = []
-                for reg_addr in range(MODBUS_REGISTER_START, MODBUS_REGISTER_START + MODBUS_REGISTER_COUNT):
-                    try:
+            for unit_id, unit_tag in MODBUS_UNITS.items():
+                # ── Step 2: Read Holding Registers ────────────────────────────
+                try:
+                    registers = []
+                    for reg_addr in range(MODBUS_REGISTER_START, MODBUS_REGISTER_START + MODBUS_REGISTER_COUNT):
                         response = modbus_client.read_holding_registers(
                             address=reg_addr,
                             count=1,
-                            device_id=MODBUS_DEVICE_ID,
+                            slave=unit_id,
                         )
-                    except TypeError:
-                        response = modbus_client.read_holding_registers(
-                            address=reg_addr,
-                            count=1,
-                            slave=MODBUS_DEVICE_ID,
-                        )
-                    if response.isError():
-                        log.error("Modbus Error reading address %d: %s", reg_addr, response)
-                        registers.append(0)
-                    else:
-                        registers.append(response.registers[0])
-            except Exception as exc:
-                log.error("Modbus read error on cycle %d: %s", cycle, exc)
-                modbus_client.close()   # force reconnect next cycle
-                time.sleep(POLL_INTERVAL_SECONDS)
-                continue
+                        if response.isError():
+                            log.error("Modbus Error reading address %d (Unit %d): %s", reg_addr, unit_id, response)
+                            registers.append(0)
+                        else:
+                            registers.append(response.registers[0])
+                except Exception as exc:
+                    log.error("Modbus read error on cycle %d (Unit %d): %s", cycle, unit_id, exc)
+                    modbus_client.close()   # force reconnect next cycle
+                    continue
 
-            raw_registers = registers
-            log.debug("Cycle %d | Raw registers: %s", cycle, raw_registers)
+                raw_registers = registers
+                
+                # ── Step 3: Descale raw integers → physical units ─────────────
+                try:
+                    telemetry = descale(raw_registers)
+                except ValueError as exc:
+                    log.error("Descaling error on cycle %d (Unit %d): %s", cycle, unit_id, exc)
+                    continue
 
-            # ── Step 3: Descale raw integers → physical units ─────────────
-            try:
-                telemetry = descale(raw_registers)
-            except ValueError as exc:
-                log.error("Descaling error on cycle %d: %s", cycle, exc)
-                time.sleep(POLL_INTERVAL_SECONDS)
-                continue
+                # ── Step 4: Write to InfluxDB ─────────────────────────────────
+                point = build_influx_point(telemetry, unit_tag)
+                try:
+                    write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
+                except Exception as exc:   # catch broad InfluxDB/network errors
+                    log.error("InfluxDB write failed on cycle %d (Unit %d): %s", cycle, unit_id, exc)
+                    continue
 
-            # ── Step 4: Write to InfluxDB ─────────────────────────────────
-            point = build_influx_point(telemetry)
-            try:
-                write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
-            except Exception as exc:   # catch broad InfluxDB/network errors
-                log.error("InfluxDB write failed on cycle %d: %s", cycle, exc)
-                time.sleep(POLL_INTERVAL_SECONDS)
-                continue
-
-            # ── Step 5: Log confirmation every cycle ──────────────────────
-            log.info(
-                "Cycle %d written ✓ | RPM: %.0f | Power: %.1f MW | Freq: %.1f Hz | "
-                "Vibration: %.2f mm/s | Bearing: %.1f °C | Stator: %.1f °C",
-                cycle,
-                telemetry["rotational_speed_rpm"],
-                telemetry["active_power_mw"],
-                telemetry["frequency_hz"],
-                telemetry["vibration_mms"],
-                telemetry["bearing_temp_c"],
-                telemetry["stator_winding_temp_c"],
-            )
+                # ── Step 5: Log confirmation every cycle ──────────────────────
+                log.info(
+                    "Cycle %d [%s] written ✓ | RPM: %.0f | Power: %.1f MW | Freq: %.1f Hz | "
+                    "Vibration: %.2f mm/s | Bearing: %.1f °C | Stator: %.1f °C",
+                    cycle,
+                    unit_tag,
+                    telemetry["rotational_speed_rpm"],
+                    telemetry["active_power_mw"],
+                    telemetry["frequency_hz"],
+                    telemetry["vibration_mms"],
+                    telemetry["bearing_temp_c"],
+                    telemetry["stator_winding_temp_c"],
+                )
 
             # ── Step 6: Sleep for the remainder of the poll interval ───────
             elapsed = time.monotonic() - cycle_start

@@ -43,25 +43,32 @@ NUM_REGISTERS = 25
 # ---------------------------------------------------------------------------
 # Data Block Initialization
 # ---------------------------------------------------------------------------
-store = ModbusSlaveContext(hr=ModbusSequentialDataBlock(0, [0] * (NUM_REGISTERS + 2)))
+slaves = {
+    1: ModbusSlaveContext(hr=ModbusSequentialDataBlock(0, [0] * (NUM_REGISTERS + 2))),
+    2: ModbusSlaveContext(hr=ModbusSequentialDataBlock(0, [0] * (NUM_REGISTERS + 2))),
+}
 try:
-    server_context = ModbusServerContext(slaves=store, single=True)
+    server_context = ModbusServerContext(slaves=slaves, single=False)
 except TypeError:
-    server_context = ModbusServerContext(devices=store, single=True)
+    server_context = ModbusServerContext(devices=slaves, single=False)
 
 
 # ---------------------------------------------------------------------------
 # Simulation State
 # ---------------------------------------------------------------------------
 class TurbineState:
-    def __init__(self):
-        self.bearing_temp = 65.0       # Base bearing temperature
-        self.stator_temp = 85.0        # Base stator temperature
-        self.t = 0.0                   # Global simulation time (seconds)
+    def __init__(self, unit_id=1):
+        self.unit_id = unit_id
+        self.bearing_temp = 65.0 + (unit_id * 2.5)       # Base bearing temperature
+        self.stator_temp = 85.0 + (unit_id * 3.0)        # Base stator temperature
+        self.t = (unit_id - 1) * 3700.0                  # Offset time so turbines are out of sync
         self.state_idx = 0             # 0: Normal, 1: Degradation, 2: Cavitation
         self.time_in_state = 0.0
 
-turbine = TurbineState()
+turbines = {
+    1: TurbineState(unit_id=1),
+    2: TurbineState(unit_id=2),
+}
 
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(value, hi))
@@ -69,7 +76,7 @@ def clamp(value: float, lo: float, hi: float) -> float:
 # ---------------------------------------------------------------------------
 # Simulation Logic
 # ---------------------------------------------------------------------------
-def compute_register_values() -> list[int]:
+def compute_register_values(turbine: TurbineState) -> list[int]:
     turbine.t += UPDATE_INTERVAL_SECONDS
     t = turbine.t
 
@@ -152,7 +159,7 @@ def compute_register_values() -> list[int]:
     gov_oil_pressure = 40.0 + random.gauss(0, 0.2)
 
     # Log the current state for the terminal
-    log.info(f"[STATE: {state_name}] t={t:.1f}s | RPM: {rpm:.1f} | Power: {power_demand:.1f} MW | Vib: {harmonic_vibration:.2f} mm/s | BrgTemp: {current_bearing_temp:.1f} °C")
+    log.info(f"[Unit {turbine.unit_id}] [STATE: {state_name}] t={t:.1f}s | RPM: {rpm:.1f} | Power: {power_demand:.1f} MW | Vib: {harmonic_vibration:.2f} mm/s | BrgTemp: {current_bearing_temp:.1f} °C")
 
     # Scale and assign to Register Map (cast to int)
     regs[0] = int(rpm)                                 # Reg 0: RPM (Int)
@@ -177,16 +184,16 @@ def compute_register_values() -> list[int]:
 # Background Simulation Loop
 # ---------------------------------------------------------------------------
 async def simulation_loop() -> None:
-    log.info("Physics Simulation loop started. Updating registers every %.1fs.", UPDATE_INTERVAL_SECONDS)
+    log.info("Physics Simulation loop started. Updating 3 units every %.1fs.", UPDATE_INTERVAL_SECONDS)
 
     while True:
-        regs = compute_register_values()
-        # pymodbus ModbusSlaveContext adds +1 to the address internally (zero_mode=False).
-        # setValues(3, 0, regs) sets block keys 1-25.
-        try:
-            await server_context.async_setValues(0, 3, 0, regs)
-        except AttributeError:
-            store.setValues(3, 0, regs)
+        for unit_id, turbine in turbines.items():
+            regs = compute_register_values(turbine)
+            # pymodbus ModbusSlaveContext adds +1 to the address internally (zero_mode=False).
+            try:
+                await server_context.async_setValues(unit_id, 3, 0, regs)
+            except AttributeError:
+                server_context[unit_id].setValues(3, 0, regs)
         await asyncio.sleep(UPDATE_INTERVAL_SECONDS)
 
 # ---------------------------------------------------------------------------

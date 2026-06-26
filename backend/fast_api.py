@@ -24,6 +24,7 @@
 
 import logging
 import os
+import time
 import numpy as np
 import joblib
 from fastapi import FastAPI, HTTPException
@@ -35,7 +36,7 @@ from pymodbus.client import AsyncModbusTcpClient
 # ---------------------------------------------------------------------------
 # CONFIG — drop your credentials here
 # ---------------------------------------------------------------------------
-INFLUX_URL    = "http://influxdb:8086"
+INFLUX_URL    = "http://localhost:8086"
 INFLUX_TOKEN  = "stGlbfflFYJOTzrAq6oQXRGQ6H8ez9ROn3mT8Tt_y8i4GBBwYUFT1sT3dlo5T7uxboTRjzkMM_aLyU6bczf0xg=="
 INFLUX_ORG    = "ruas"
 INFLUX_BUCKET = "ruas"
@@ -70,6 +71,7 @@ scaler_path = os.path.join(base_dir, 'turbine_scaler.joblib')
 
 ml_model = None
 ml_scaler = None
+last_alert_time = {}
 
 try:
     if os.path.exists(model_path) and os.path.exists(scaler_path):
@@ -105,7 +107,7 @@ class GateControl(BaseModel):
 # ---------------------------------------------------------------------------
 # MODBUS CONFIG
 # ---------------------------------------------------------------------------
-MODBUS_HOST = "modbus-server"
+MODBUS_HOST = "localhost"
 MODBUS_PORT = 5020
 WICKET_GATE_REGISTER = 6   # Holding Register address for the Wicket Gate
 
@@ -140,7 +142,7 @@ def diagnose_fault(telemetry_data: dict):
     return "Unknown Complex Anomaly", "WARNING: System operating outside healthy baseline. Monitor closely."
 
 @app.get("/api/live-data")
-async def get_live_data():
+async def get_live_data(unit: str = "turbine_01"):
     """
     Retrieve the single most recent record for the turbine_telemetry measurement.
     """
@@ -150,7 +152,7 @@ async def get_live_data():
     flux_query = f'''
         from(bucket: "{INFLUX_BUCKET}")
             |> range(start: -1h)
-            |> filter(fn: (r) => r["_measurement"] == "turbine_telemetry")
+            |> filter(fn: (r) => r["_measurement"] == "turbine_telemetry" and r["unit"] == "{unit}")
             |> last()
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     '''
@@ -198,6 +200,16 @@ async def get_live_data():
                 
                 if is_anomaly:
                     diagnosis, action_required = diagnose_fault(cleaned_record)
+                    
+                    # Mock Alert Logging (Debounced to 1 per minute per unit)
+                    now = time.time()
+                    if now - last_alert_time.get(unit, 0) > 60:
+                        alert_path = os.path.join(base_dir, "alerts.log")
+                        with open(alert_path, "a", encoding="utf-8") as f:
+                            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] SMS ALERT SENT -> URGENT [{unit}]: {diagnosis}. {action_required}\n")
+                        last_alert_time[unit] = now
+                        logger.warning(f"Simulated SMS Alert sent for {unit}")
+
                 else:
                     diagnosis = "System Healthy"
                     action_required = "None"
@@ -223,6 +235,16 @@ async def get_live_data():
             detail="Error communicating with the database. Ensure InfluxDB is running and credentials are correct."
         )
 
+class GateControl(BaseModel):
+    """Payload for the Wicket Gate control endpoint."""
+    gate_opening_percentage: float = Field(
+        ...,
+        ge=0.0,
+        le=100.0,
+        description="Desired wicket-gate opening as a percentage (0.0 – 100.0)."
+    )
+    unit: str = "turbine_01"
+
 # ---------------------------------------------------------------------------
 # POST  /api/control-gate — Two-Way SCADA: Write Wicket-Gate Setpoint
 # ---------------------------------------------------------------------------
@@ -235,6 +257,11 @@ async def control_gate(payload: GateControl):
     so we multiply the incoming float by 10 before writing.
     """
     scaled_value = int(payload.gate_opening_percentage * 10)
+    
+    try:
+        slave_id = int(payload.unit.split("_")[1])
+    except:
+        slave_id = 1
 
     try:
         client = AsyncModbusTcpClient(MODBUS_HOST, port=MODBUS_PORT)
@@ -243,9 +270,9 @@ async def control_gate(payload: GateControl):
         if not client.connected:
             raise ConnectionError("Unable to establish connection to Modbus server.")
 
-        await client.write_register(address=WICKET_GATE_REGISTER, value=scaled_value)
+        await client.write_register(address=WICKET_GATE_REGISTER, value=scaled_value, slave=slave_id)
         logger.info(
-            f"SCADA WRITE ▸ Wicket gate set to {payload.gate_opening_percentage}% "
+            f"SCADA WRITE [{payload.unit}] ▸ Wicket gate set to {payload.gate_opening_percentage}% "
             f"(register {WICKET_GATE_REGISTER} = {scaled_value})"
         )
 

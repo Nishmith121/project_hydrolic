@@ -18,7 +18,7 @@ function arcPath(cx, cy, r, startDeg, endDeg) {
   return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
 }
 
-export default function GateControlPanel({ latest, gateConnected, setGateConnected }) {
+export default function GateControlPanel({ latest, gateConnected, setGateConnected, activeUnit = "turbine_01" }) {
   const [sliderValue, setSliderValue] = useState(50);
   const [statusMessage, setStatusMessage] = useState(null);
   const [statusType, setStatusType] = useState("idle");
@@ -43,7 +43,7 @@ export default function GateControlPanel({ latest, gateConnected, setGateConnect
       const res = await fetch(CONTROL_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gate_opening_percentage: sliderValue }),
+        body: JSON.stringify({ gate_opening_percentage: sliderValue, unit: activeUnit }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       flash("Command Accepted. Gate adjusting.", "success");
@@ -83,7 +83,7 @@ export default function GateControlPanel({ latest, gateConnected, setGateConnect
       <Flex align="center" justify="space-between" style={{ marginBottom: 20 }}>
         <Flex align="center" gap={10}>
           <SettingOutlined style={{ fontSize: 16, color: accentColor }} />
-          <Text strong style={{ fontSize: 14, color: "#e8f4f8" }}>Wicket Gate Supervisory Control</Text>
+          <Text strong style={{ fontSize: 14, color: "#e8f4f8" }}>Wicket Gate Supervisory Control ({activeUnit})</Text>
         </Flex>
         <Flex align="center" gap={8}>
           <Tag color={gateConnected ? "success" : "default"} style={{ margin: 0 }}>

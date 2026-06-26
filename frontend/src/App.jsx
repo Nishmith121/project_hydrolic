@@ -105,6 +105,42 @@ function TurbineLogo() {
   );
 }
 
+// ── Financial Widget ──────────────────────────────────────────────────────────
+function FinancialWidget({ latest }) {
+  const power = latest?.active_power_mw || 0;
+  const ratePerMWh = 50; // $50 per MWh
+  const currentRevenuePerHour = power * ratePerMWh;
+  const isAnomaly = latest?.ml_insights?.is_anomaly;
+
+  return (
+    <div style={{ 
+      background: isAnomaly ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", 
+      border: `1px solid ${isAnomaly ? "#ef4444" : "#10b981"}`, 
+      borderRadius: 12, padding: "16px 24px", marginTop: 16, marginBottom: 16,
+      display: "flex", justifyContent: "space-between", alignItems: "center"
+    }}>
+      <div>
+        <div style={{ color: "#a3c4d4", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>Live Revenue Generation</div>
+        <div style={{ color: isAnomaly ? "#ef4444" : "#10b981", fontSize: 28, fontWeight: "bold" }}>
+          ${currentRevenuePerHour.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style={{ fontSize: 16 }}>/ hr</span>
+        </div>
+      </div>
+      {isAnomaly && (
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: "#ef4444", fontSize: 13, fontWeight: "bold" }}>⚠️ Efficiency Drop Detected</div>
+          <div style={{ color: "#fca5a5", fontSize: 13 }}>Estimated Loss: $4,500/hr if unresolved</div>
+        </div>
+      )}
+      {!isAnomaly && (
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: "#10b981", fontSize: 13, fontWeight: "bold" }}>✓ Optimal Efficiency</div>
+          <div style={{ color: "#6ee7b7", fontSize: 13 }}>Operating at peak revenue capacity</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -114,7 +150,16 @@ export default function App() {
   const [lastTs,  setLastTs]  = useState(null);
   const [activePage, setActivePage] = useState("dashboard");
   const [gateConnected, setGateConnected] = useState(false);
+  const [activeUnit, setActiveUnit] = useState("turbine_01");
   const tick = useRef(0);
+
+  // Reset history when switching units
+  useEffect(() => {
+    setHistory([]);
+    setLatest(null);
+    setStatus("idle");
+    tick.current = 0;
+  }, [activeUnit]);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -122,7 +167,7 @@ export default function App() {
     setStatus("connecting");
     async function poll() {
       try {
-        const r = await fetch(API_URL);
+        const r = await fetch(`${API_URL}?unit=${activeUnit}`);
         if (!r.ok) throw new Error();
         const d = await r.json();
         if (!live) return;
@@ -139,7 +184,7 @@ export default function App() {
     poll();
     const id = setInterval(poll, POLL_MS);
     return () => { live = false; clearInterval(id); };
-  }, [isConnected]);
+  }, [isConnected, activeUnit]);
 
   // ── Welcome / Connect Screen ──
   if (!isConnected) {
@@ -207,16 +252,7 @@ export default function App() {
   }
 
   // ── Loading (brief state while first poll completes) ──
-  if (status === "connecting" || status === "idle") {
-    return (
-      <div className="loading-screen">
-        <Spin size="large" />
-        <Text style={{ color: C.primary, fontSize: 12, letterSpacing: 3, textTransform: "uppercase" }}>
-          Connecting to Turbine…
-        </Text>
-      </div>
-    );
-  }
+  // Moved into the Content area below to prevent the entire layout from flickering
 
   const score  = conditionScore(latest);
   const alerts = buildAlerts(latest);
@@ -271,9 +307,17 @@ export default function App() {
           <Tag color={score >= 90 ? "success" : score >= 75 ? "warning" : "error"} style={{ margin: 0, fontWeight: 600 }}>
             Score {score}/100
           </Tag>
-          <Tag icon={<UserOutlined />} style={{ margin: 0, background: palette.bgCard, borderColor: palette.border, color: palette.textMuted }}>
-            turbine_01
-          </Tag>
+          <select 
+            value={activeUnit} 
+            onChange={e => setActiveUnit(e.target.value)}
+            style={{
+              background: palette.bgCard, border: `1px solid ${palette.border}`, color: palette.textMuted,
+              padding: "2px 8px", borderRadius: 4, outline: "none", cursor: "pointer", fontSize: 12, fontWeight: "bold"
+            }}
+          >
+            <option value="turbine_01">Turbine 01</option>
+            <option value="turbine_02">Turbine 02</option>
+          </select>
         </Flex>
       </Header>
 
@@ -285,78 +329,91 @@ export default function App() {
 
         <Content style={{ padding: 24, overflow: "auto", height: "calc(100vh - 64px)" }}>
 
-          {/* ─── DASHBOARD ────────────────────────────────────────────── */}
-          {activePage === "dashboard" && (
-            <div className="fade-in">
-              <StatusStrip latest={latest} />
+          {/* ─── LOADING STATE ────────────────────────────────────────── */}
+          {(status === "connecting" || status === "idle" || !latest) ? (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6 }}>
+              <Spin size="large" />
+              <Text style={{ color: C.primary, fontSize: 12, letterSpacing: 3, textTransform: "uppercase", marginTop: 16 }}>
+                Connecting to {activeUnit.replace('_', ' ')}...
+              </Text>
+            </div>
+          ) : (
+            <div key={activeUnit}>
+              {/* ─── DASHBOARD ────────────────────────────────────────────── */}
+              {activePage === "dashboard" && (
+                <div className="fade-in">
+                  <StatusStrip latest={latest} />
+                  <FinancialWidget latest={latest} />
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, marginTop: 24 }}>
-                <div>
-                  <SectionDivider title="Secondary Sensors" color={C.teal} />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-                    {SECONDARY(latest).map(c => (
-                      <MetricCard key={c.label} {...c} status="normal" compact />
-                    ))}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, marginTop: 24 }}>
+                    <div>
+                      <SectionDivider title="Secondary Sensors" color={C.teal} />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                        {SECONDARY(latest).map(c => (
+                          <MetricCard key={c.label} {...c} status="normal" compact />
+                        ))}
+                      </div>
+                    </div>
+                    <KPIPanel latest={latest} score={score} />
+                  </div>
+
+                  <div style={{ marginTop: 24 }}>
+                    <SectionDivider title="Monitored Parameters" color={C.amber} />
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+                      {MONITORED(latest).map(c => (
+                        <MetricCard key={c.label} {...c} status={c.thr ? getStatus(c.raw, c.thr) : "normal"} />
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <KPIPanel latest={latest} score={score} />
-              </div>
+              )}
 
-              <div style={{ marginTop: 24 }}>
-                <SectionDivider title="Monitored Parameters" color={C.amber} />
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
-                  {MONITORED(latest).map(c => (
-                    <MetricCard key={c.label} {...c} status={c.thr ? getStatus(c.raw, c.thr) : "normal"} />
-                  ))}
+              {/* ─── SCADA CONTROL ────────────────────────────────────────── */}
+              {activePage === "scada" && (
+                <div className="fade-in">
+                  <GateControlPanel latest={latest} gateConnected={gateConnected} setGateConnected={setGateConnected} activeUnit={activeUnit} />
+                  <div style={{ marginTop: 24 }}>
+                    <SectionDivider title="System Response Trends" color={C.secondary} />
+                    <TabbedChart history={history} />
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* ─── SCADA CONTROL ────────────────────────────────────────── */}
-          {activePage === "scada" && (
-            <div className="fade-in">
-              <GateControlPanel latest={latest} gateConnected={gateConnected} setGateConnected={setGateConnected} />
-              <div style={{ marginTop: 24 }}>
-                <SectionDivider title="System Response Trends" color={C.secondary} />
-                <TabbedChart history={history} />
-              </div>
-            </div>
-          )}
+              {/* ─── AI & ALERTS ──────────────────────────────────────────── */}
+              {activePage === "ai-alerts" && (
+                <div className="fade-in" style={{ height: "100%" }}>
+                  <AiAlertsPage alerts={alerts} mlInsights={ml} history={history} />
+                </div>
+              )}
 
-          {/* ─── AI & ALERTS ──────────────────────────────────────────── */}
-          {activePage === "ai-alerts" && (
-            <div className="fade-in" style={{ height: "100%" }}>
-              <AiAlertsPage alerts={alerts} mlInsights={ml} history={history} />
-            </div>
-          )}
+              {/* ─── AI RECOMMENDATIONS ──────────────────────────────────── */}
+              {activePage === "ai-reco" && (
+                <div className="fade-in">
+                  <AiRecommendationsPage mlInsights={ml} latest={latest} history={history} />
+                </div>
+              )}
 
-          {/* ─── AI RECOMMENDATIONS ──────────────────────────────────── */}
-          {activePage === "ai-reco" && (
-            <div className="fade-in">
-              <AiRecommendationsPage mlInsights={ml} latest={latest} history={history} />
-            </div>
-          )}
-
-          {/* ─── ANALYTICS ────────────────────────────────────────────── */}
-          {activePage === "analytics" && (
-            <div className="fade-in">
-              <SectionDivider title="Live Telemetry Trends" color={C.secondary} />
-              <TabbedChart history={history} />
-              <div style={{ marginTop: 24 }}>
-                <SectionDivider title="Deep Analytics" color={C.purple} />
-                <AnalyticsCharts latest={latest} history={history} />
-              </div>
-              <div style={{ marginTop: 32 }}>
-                <SectionDivider title="Export & Reporting" color={C.cyan} />
-                <ReportGenerator />
-              </div>
-            </div>
-          )}
-          {/* ─── 3D MODEL ──────────────────────────────────────────── */}
-          {activePage === "3d-model" && (
-            <div className="fade-in">
-              <TurbineModel3D latest={latest} alerts={alerts} gateConnected={gateConnected} />
+              {/* ─── ANALYTICS ────────────────────────────────────────────── */}
+              {activePage === "analytics" && (
+                <div className="fade-in">
+                  <SectionDivider title="Live Telemetry Trends" color={C.secondary} />
+                  <TabbedChart history={history} />
+                  <div style={{ marginTop: 24 }}>
+                    <SectionDivider title="Deep Analytics" color={C.purple} />
+                    <AnalyticsCharts latest={latest} history={history} />
+                  </div>
+                  <div style={{ marginTop: 32 }}>
+                    <SectionDivider title="Export & Reporting" color={C.cyan} />
+                    <ReportGenerator latest={latest} activeUnit={activeUnit} history={history} />
+                  </div>
+                </div>
+              )}
+              {/* ─── 3D MODEL ──────────────────────────────────────────── */}
+              {activePage === "3d-model" && (
+                <div className="fade-in">
+                  <TurbineModel3D latest={latest} alerts={alerts} gateConnected={gateConnected} />
+                </div>
+              )}
             </div>
           )}
 
