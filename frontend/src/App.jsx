@@ -114,9 +114,12 @@ function FinancialWidget({ latest }) {
 
   return (
     <div style={{ 
-      background: isAnomaly ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", 
-      border: `1px solid ${isAnomaly ? "#ef4444" : "#10b981"}`, 
-      borderRadius: 12, padding: "16px 24px", marginTop: 16, marginBottom: 16,
+      background: isAnomaly 
+        ? "linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05))" 
+        : "linear-gradient(145deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05))",
+      border: `1px solid ${isAnomaly ? "rgba(239, 68, 68, 0.5)" : "rgba(16, 185, 129, 0.5)"}`, 
+      boxShadow: "6px 6px 16px rgba(0,0,0,0.4), -4px -4px 10px rgba(255,255,255,0.02), inset 1px 1px 3px rgba(255,255,255,0.1)",
+      borderRadius: 14, padding: "16px 24px", marginTop: 16, marginBottom: 16,
       display: "flex", justifyContent: "space-between", alignItems: "center"
     }}>
       <div>
@@ -152,6 +155,7 @@ export default function App() {
   const [gateConnected, setGateConnected] = useState(false);
   const [activeUnit, setActiveUnit] = useState("turbine_01");
   const tick = useRef(0);
+  const holdRef = useRef({ ml: null, mlExpiry: 0, alerts: {} });
 
   // Reset history when switching units
   useEffect(() => {
@@ -255,9 +259,48 @@ export default function App() {
   // Moved into the Content area below to prevent the entire layout from flickering
 
   const score  = conditionScore(latest);
-  const alerts = buildAlerts(latest);
-  const ml     = latest?.ml_insights;
+  const rawAlerts = buildAlerts(latest);
+  const rawMl     = latest?.ml_insights;
+
+  // ── ALERTS & ML STABILIZATION (Latching for 2 minutes to prevent flicker) ──
+  const HOLD_TICKS = 120; // 120 seconds (2 minutes)
+  const currentTick = tick.current;
+
+  // Update ML Hold
+  if (rawMl?.is_anomaly) {
+    holdRef.current.ml = rawMl;
+    holdRef.current.mlExpiry = currentTick + HOLD_TICKS;
+  }
+  
+  let ml = rawMl;
+  // If live feed drops anomaly, but we are still in the hold period, force it to stay anomalous
+  if (!rawMl?.is_anomaly && currentTick < holdRef.current.mlExpiry) {
+    ml = holdRef.current.ml; 
+  }
   const isAnomaly = ml?.is_anomaly;
+
+  // Update Alerts Hold
+  (rawAlerts || []).forEach(a => {
+    if (a.level !== 'ok') {
+      holdRef.current.alerts[a.title] = { data: a, expiry: currentTick + HOLD_TICKS };
+    }
+  });
+
+  // Build final stabilized alerts
+  const alerts = [];
+  const seenTitles = new Set();
+  
+  (rawAlerts || []).forEach(a => {
+    alerts.push(a);
+    seenTitles.add(a.title);
+  });
+  
+  Object.keys(holdRef.current.alerts).forEach(title => {
+    const heldAlert = holdRef.current.alerts[title];
+    if (currentTick < heldAlert.expiry && !seenTitles.has(title)) {
+      alerts.push(heldAlert.data);
+    }
+  });
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -323,9 +366,11 @@ export default function App() {
 
       {/* ═══ BODY ══════════════════════════════════════════════════════════ */}
       <Layout>
-        <Sider width={260} style={{ overflow: "auto", height: "calc(100vh - 64px)" }}>
-          <SidebarLeft />
-        </Sider>
+        {activePage === "dashboard" && (
+          <Sider width={260} style={{ overflow: "auto", height: "calc(100vh - 64px)" }}>
+            <SidebarLeft />
+          </Sider>
+        )}
 
         <Content style={{ padding: 24, overflow: "auto", height: "calc(100vh - 64px)" }}>
 

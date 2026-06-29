@@ -13,11 +13,11 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
   const score     = ml.anomaly_score ?? 0;
   const rawDiagnosis = ml.diagnosis;
   const rawAction    = ml.action_required;
-  const diagnosis = (!rawDiagnosis || rawDiagnosis === "None") ? "System operating within normal parameters" : rawDiagnosis;
-  const action    = (!rawAction || rawAction === "None") ? "Continue monitoring - all systems nominal" : rawAction;
+  const diagnosis = (!rawDiagnosis || rawDiagnosis === "None") ? "The turbine is running perfectly smoothly. No unusual patterns detected." : rawDiagnosis;
+  const action    = (!rawAction || rawAction === "None") ? "No actions required right now. Keep up the good work!" : rawAction;
 
   /* ── Severity label ──────────────────────────────────────────────────── */
-  const severity = isAnomaly ? "CRITICAL" : "NORMAL";
+  const severity = isAnomaly ? "NEEDS ATTENTION!" : "ALL GOOD!";
   const sevColor = isAnomaly ? "#ef4444" : "#10b981";
 
   /* ── Derived KPIs ────────────────────────────────────────────────────── */
@@ -135,17 +135,17 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.4)]" />
 
         <div className="flex items-center gap-2.5 mb-6">
-          <span className="text-amber-500 text-lg">⚙</span>
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#10b981]">AI Diagnostics</h2>
+          <span className="text-amber-500 text-lg">🧠</span>
+          <h2 className="text-sm font-bold tracking-widest uppercase text-[#10b981]">What the AI is thinking</h2>
         </div>
 
         <div className="space-y-5">
           <div>
-            <span className="block text-xs font-bold tracking-widest uppercase text-red-500 mb-1.5">Root Cause</span>
+            <span className="block text-xs font-bold tracking-widest uppercase text-red-500 mb-1.5">What is happening?</span>
             <p className="text-sm text-[#e8f4f8] leading-relaxed">{diagnosis}</p>
           </div>
           <div>
-            <span className="block text-xs font-bold tracking-widest uppercase text-[#10b981] mb-1.5">Recommendation</span>
+            <span className="block text-xs font-bold tracking-widest uppercase text-[#10b981] mb-1.5">What should we do?</span>
             <p className="text-sm text-[#e8f4f8] leading-relaxed">{action}</p>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
 
         <div className="flex items-center gap-2.5 mb-5">
           <span className="text-[#10b981] text-lg">🛡</span>
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#10b981]">System Health</h2>
+          <h2 className="text-sm font-bold tracking-widest uppercase text-[#10b981]">Overall Turbine Status</h2>
         </div>
 
         <div className="flex items-center gap-6">
@@ -169,17 +169,17 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
                 style={{ transition: "all 0.4s ease", filter: `drop-shadow(0 0 8px ${sevColor}88)` }} />
             </svg>
             <div className="-mt-8 text-center">
-              <span className="block text-[10px] text-[#6a9bb5] tracking-widest uppercase">Severity</span>
-              <span className="block text-xl font-black tracking-wider" style={{ color: sevColor }}>{severity}</span>
+              <span className="block text-[10px] text-[#6a9bb5] tracking-widest uppercase">Current State</span>
+              <span className="block text-[15px] font-black tracking-wider mt-1" style={{ color: sevColor }}>{severity}</span>
             </div>
           </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-3 gap-3 flex-1">
             {[
-              { label: "Confidence", value: `${confidence}%`, icon: "🛡", color: "#10b981" },
-              { label: "Stability",  value: `${stability}%`,  icon: "📊", color: "#10b981" },
-              { label: "Rolling Avg", value: `${rollingAvg}`, icon: "📈", color: "#f59e0b" },
+              { label: "AI Certainty", value: `${confidence}%`, icon: "🎯", color: "#10b981" },
+              { label: "Smoothness",  value: `${stability}%`,  icon: "🌊", color: "#10b981" },
+              { label: "Current Stress", value: `${rollingAvg}`, icon: "⚠️", color: "#f59e0b" },
             ].map(kpi => (
               <div key={kpi.label} className="bg-[#071a2b]/70 border border-[#164260] rounded-lg p-3 text-center">
                 <span className="block text-lg mb-1">{kpi.icon}</span>
@@ -195,9 +195,12 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
       <div className="bg-[#0b2236]/90 border border-[#164260] rounded-xl p-6 relative overflow-hidden shadow-lg">
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#06b6d4] shadow-[0_0_12px_rgba(6,182,212,0.4)]" />
 
-        <div className="flex items-center gap-2.5 mb-4">
-          <span className="text-[#06b6d4] text-lg">📈</span>
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#06b6d4]">Anomaly Score Trend</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[#06b6d4] text-lg">📈</span>
+            <h2 className="text-sm font-bold tracking-widest uppercase text-[#06b6d4]">Machine Stress Over Time</h2>
+          </div>
+          <span className="text-[11px] text-[#6a9bb5] italic">Rising lines mean the machine is struggling</span>
         </div>
 
         <div className="bg-[#071a2b]/60 border border-[#164260] rounded-lg p-3">
@@ -205,7 +208,7 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
             <Line {...trendConfig} />
           ) : (
             <div className="h-[200px] flex items-center justify-center text-[#6a9bb5] text-sm">
-              Collecting data…
+              Listening to the machine...
             </div>
           )}
         </div>
@@ -215,9 +218,12 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
       <div className="bg-[#0b2236]/90 border border-[#164260] rounded-xl p-6 relative overflow-hidden shadow-lg">
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#10b981] shadow-[0_0_12px_rgba(16,185,129,0.4)]" />
 
-        <div className="flex items-center gap-2.5 mb-4">
-          <span className="text-[#10b981] text-lg">📊</span>
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#10b981]">Sensor Impact Analysis</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[#10b981] text-lg">🔍</span>
+            <h2 className="text-sm font-bold tracking-widest uppercase text-[#10b981]">Which Parts Are Causing Trouble?</h2>
+          </div>
+          {isAnomaly && <span className="text-[11px] text-[#f59e0b] italic">Taller bars = needs inspection</span>}
         </div>
 
         {isAnomaly ? (
@@ -225,9 +231,10 @@ export default function AiRecommendationsPage({ mlInsights, latest, history }) {
             <Column {...barConfig} />
           </div>
         ) : (
-          <div className="rounded-xl border-2 border-[#10b981]/40 bg-[#10b981]/10 p-10 flex flex-col items-center justify-center gap-3 shadow-[0_0_25px_rgba(16,185,129,0.15)]">
-            <span className="text-4xl">✅</span>
-            <span className="text-lg font-extrabold tracking-widest uppercase text-[#10b981]">System Status Normal</span>
+          <div className="rounded-xl border-2 border-[#10b981]/40 bg-[#10b981]/10 p-10 flex flex-col items-center justify-center gap-3 shadow-[0_0_25px_rgba(16,185,129,0.15)] h-[226px]">
+            <span className="text-5xl mb-2">🎉</span>
+            <span className="text-xl font-extrabold tracking-widest uppercase text-[#10b981]">Everything is running smoothly!</span>
+            <span className="text-[13px] text-[#6a9bb5]">No parts require your attention right now.</span>
           </div>
         )}
       </div>
